@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Test / tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Mock runtime state (JIRAMOCK_PERSIST)
+*.state.json
+state.json
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,54 @@
+# Example jira-dc-8.20-mock config.  Point at it with JIRAMOCK_CONFIG=examples/config.yaml
+# Any JIRAMOCK_* environment variable overrides the matching key here.
+
+# --- server ---
+host: 127.0.0.1
+port: 8080
+latency_ms: 0          # inject artificial latency per request (cache/perf testing)
+
+# --- dataset identity & determinism ---
+seed: "0"              # change to get a different (but still deterministic) dataset
+date: 2026-01-15       # "today" anchor for all relative dates (reproducible)
+project_key: DEMO
+project_name: Demo Project
+server_version: 8.20.8
+locale: en             # en | ko
+
+# --- custom field ids (match what your client expects) ---
+sp_field: customfield_10004
+epic_link_field: customfield_10008
+sprint_field: customfield_10007
+
+# --- behaviour ---
+readonly: false        # set true to reject all writes with 403
+# persist: state.json  # uncomment to load/save mutable state to a file across restarts
+
+# --- dataset shape ---
+modules: [Web, API, Mobile, Payments, Platform, Infra]
+components_extra: [Support]
+users_per_module: 3
+
+# volume knobs
+epics_per_module: 3
+children_per_epic: [4, 9]
+standalone_per_module: 10
+history_per_module: 12
+sprints_per_scrum_board: 5   # a few closed + one active + a couple future
+
+# workflow (statusName, category[todo|inprogress|done], numeric id)
+statuses:
+  - [Open, todo, "1"]
+  - [In Progress, inprogress, "3"]
+  - [In Review, inprogress, "10001"]
+  - [Done, done, "10002"]
+  - [Reopened, todo, "4"]
+
+# issue types (name, numeric id).  A type literally named "Sub-task" is treated as a subtask.
+issue_types:
+  - [Bug, "1"]
+  - [Epic, "2"]
+  - [Improvement, "3"]
+  - [New Feature, "4"]
+  - [Story, "5"]
+  - [Task, "6"]
+  - [Sub-task, "7"]

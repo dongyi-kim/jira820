@@ -1,0 +1,159 @@
+"""Configuration: JIRAMOCK_* environment variables merged over an optional YAML file.
+
+Precedence: environment variable > YAML value > built-in default.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from datetime import date
+from typing import Any, Optional
+
+try:
+    import yaml
+except Exception:  # pragma: no cover - yaml is a hard dependency, guard for import order
+    yaml = None
+
+
+def _pick(env_key: str, yaml_val: Any, default: Any) -> Any:
+    """env var wins -> else YAML value -> else default."""
+    v = os.getenv(env_key)
+    if v is not None and v != "":
+        return v
+    if yaml_val is not None:
+        return yaml_val
+    return default
+
+
+def _as_bool(v: Any) -> bool:
+    if isinstance(v, bool):
+        return v
+    return str(v).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _as_int(v: Any, default: int) -> int:
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+# ── default dataset (generic, business-neutral) ──
+DEFAULT_MODULES = ["Web", "API", "Mobile", "Payments", "Platform", "Infra"]
+DEFAULT_COMPONENTS_EXTRA = ["Support"]  # non-module components (e.g. a customer-facing bucket)
+
+# statusName, internal category (todo|inprogress|done), numeric id
+DEFAULT_STATUSES = [
+    ("Open", "todo", "1"),
+    ("In Progress", "inprogress", "3"),
+    ("In Review", "inprogress", "10001"),
+    ("Done", "done", "10002"),
+    ("Reopened", "todo", "4"),
+]
+# issue type name -> numeric id (Sub-task detected by name below)
+DEFAULT_ISSUE_TYPES = [
+    ("Bug", "1"), ("Epic", "2"), ("Improvement", "3"), ("New Feature", "4"),
+    ("Story", "5"), ("Task", "6"), ("Sub-task", "7"),
+]
+SUBTASK_TYPE = "Sub-task"
+
+
+@dataclass
+class Config:
+    # network
+    host: str = "127.0.0.1"
+    port: int = 8080
+    latency_ms: int = 0
+
+    # dataset determinism
+    seed: str = "0"
+    base_date: date = field(default_factory=date.today)
+
+    # project / server identity
+    project_key: str = "DEMO"
+    project_name: str = "Demo Project"
+    server_version: str = "8.20.8"
+    locale: str = "en"  # en | ko
+
+    # custom field ids
+    sp_field: str = "customfield_10004"
+    epic_link_field: str = "customfield_10008"
+    sprint_field: str = "customfield_10007"
+
+    # behaviour
+    readonly: bool = False
+    persist: Optional[str] = None
+
+    # dataset shape (YAML-overridable)
+    modules: list = field(default_factory=lambda: list(DEFAULT_MODULES))
+    components_extra: list = field(default_factory=lambda: list(DEFAULT_COMPONENTS_EXTRA))
+    statuses: list = field(default_factory=lambda: [list(s) for s in DEFAULT_STATUSES])
+    issue_types: list = field(default_factory=lambda: [list(t) for t in DEFAULT_ISSUE_TYPES])
+
+    # volume knobs
+    epics_per_module: int = 3
+    children_per_epic: tuple = (4, 9)
+    standalone_per_module: int = 10
+    history_per_module: int = 12
+    sprints_per_scrum_board: int = 5  # a few closed, one active, a couple future
+
+    # raw yaml passthrough for advanced board/user overrides
+    raw: dict = field(default_factory=dict)
+
+    @property
+    def components(self) -> list:
+        return list(self.modules) + list(self.components_extra)
+
+
+def _parse_date(v: Any, default: date) -> date:
+    if isinstance(v, date):
+        return v
+    if not v:
+        return default
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except ValueError:
+        return default
+
+
+def load_config() -> Config:
+    """Build a Config from JIRAMOCK_CONFIG (YAML) overlaid by JIRAMOCK_* env vars."""
+    ycfg: dict = {}
+    cfg_path = os.getenv("JIRAMOCK_CONFIG")
+    if cfg_path and yaml is not None:
+        with open(cfg_path, "r", encoding="utf-8") as fh:
+            ycfg = yaml.safe_load(fh) or {}
+
+    c = Config()
+    c.raw = ycfg
+    c.host = str(_pick("JIRAMOCK_HOST", ycfg.get("host"), c.host))
+    c.port = _as_int(_pick("JIRAMOCK_PORT", ycfg.get("port"), c.port), c.port)
+    c.latency_ms = _as_int(_pick("JIRAMOCK_LATENCY_MS", ycfg.get("latency_ms"), c.latency_ms), 0)
+    c.seed = str(_pick("JIRAMOCK_SEED", ycfg.get("seed"), c.seed))
+    c.base_date = _parse_date(_pick("JIRAMOCK_DATE", ycfg.get("date"), None), date.today())
+    c.project_key = str(_pick("JIRAMOCK_PROJECT_KEY", ycfg.get("project_key"), c.project_key))
+    c.project_name = str(_pick("JIRAMOCK_PROJECT_NAME", ycfg.get("project_name"), c.project_name))
+    c.server_version = str(_pick("JIRAMOCK_SERVER_VERSION", ycfg.get("server_version"), c.server_version))
+    c.locale = str(_pick("JIRAMOCK_LOCALE", ycfg.get("locale"), c.locale)).lower()
+    c.sp_field = str(_pick("JIRAMOCK_SP_FIELD", ycfg.get("sp_field"), c.sp_field))
+    c.epic_link_field = str(_pick("JIRAMOCK_EPIC_LINK_FIELD", ycfg.get("epic_link_field"), c.epic_link_field))
+    c.sprint_field = str(_pick("JIRAMOCK_SPRINT_FIELD", ycfg.get("sprint_field"), c.sprint_field))
+    c.readonly = _as_bool(_pick("JIRAMOCK_READONLY", ycfg.get("readonly"), c.readonly))
+    c.persist = _pick("JIRAMOCK_PERSIST", ycfg.get("persist"), None) or None
+
+    if ycfg.get("modules"):
+        c.modules = list(ycfg["modules"])
+    if ycfg.get("components_extra") is not None:
+        c.components_extra = list(ycfg["components_extra"])
+    if ycfg.get("statuses"):
+        c.statuses = [list(s) for s in ycfg["statuses"]]
+    if ycfg.get("issue_types"):
+        c.issue_types = [list(t) for t in ycfg["issue_types"]]
+    for k in ("epics_per_module", "standalone_per_module", "history_per_module", "sprints_per_scrum_board"):
+        if ycfg.get(k) is not None:
+            setattr(c, k, int(ycfg[k]))
+    if ycfg.get("children_per_epic"):
+        lo, hi = ycfg["children_per_epic"]
+        c.children_per_epic = (int(lo), int(hi))
+    return c

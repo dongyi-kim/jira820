@@ -10,8 +10,15 @@ pip install jira820          # (PyPI 등록 후)
 # 또는 저장소에서 직접:
 pip install "jira820 @ git+https://github.com/dongyi-kim/jira820@v0.2.0"
 
-jira820                       # -> http://127.0.0.1:8080
+jira820                       # -> http://127.0.0.1:8080  (브라우저 열면 데모 UI)
 ```
+
+## 데모 웹 UI
+
+`jira820` 를 실행하고 **http://127.0.0.1:8080/** 를 브라우저로 열면 내장 데모 클라이언트가 뜹니다
+(같은 오리진이라 CORS 없음). 티켓 **보기·검색(JQL)·생성·속성 수정·상태 전이·코멘트·파일/이미지 업로드**를
+바로 해볼 수 있습니다 — REST API 사용 예시이자, 직접 만들 클라이언트의 출발점입니다. 소스: [`demo/index.html`](demo/index.html)
+(빌드 불필요한 단일 파일 바닐라 JS).
 
 ## 왜 만들었나
 

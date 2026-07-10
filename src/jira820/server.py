@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import server_agile, server_attach, server_read, server_write
 from .config import Config, load_config
@@ -16,11 +18,20 @@ def build_store(config: Config = None) -> Store:
     return Store(config or load_config())
 
 
+def _demo_dir():
+    here = os.path.dirname(__file__)
+    for c in (os.path.join(here, "demo"),                       # packaged wheel
+              os.path.abspath(os.path.join(here, "..", "..", "demo"))):  # source checkout
+        if os.path.isdir(c):
+            return c
+    return None
+
+
 def make_app(store: Store = None, config: Config = None) -> FastAPI:
     """Build the app. Pass a `store` to inject your own data source; otherwise one is seeded."""
     if store is None:
         store = build_store(config)
-    app = FastAPI(title=f"Jira DC {store.config.server_version} mock", version="0.2.0")
+    app = FastAPI(title=f"Jira DC {store.config.server_version} mock", version="0.3.0")
     app.state.store = store
 
     @app.middleware("http")
@@ -38,4 +49,11 @@ def make_app(store: Store = None, config: Config = None) -> FastAPI:
     app.include_router(server_write.router)
     app.include_router(server_agile.router)
     app.include_router(server_attach.router)
+
+    demo = _demo_dir()
+    if demo:
+        @app.get("/")
+        def _root():
+            return RedirectResponse("/demo/")
+        app.mount("/demo", StaticFiles(directory=demo, html=True), name="demo")
     return app

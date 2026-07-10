@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jira820 · Demo</title>
+<style>
+  :root { --bg:#f4f5f7; --panel:#fff; --border:#dfe1e6; --text:#172b4d; --muted:#6b778c;
+          --accent:#0052cc; --accent2:#e9f2ff; --done:#e3fcef; --done-fg:#006644;
+          --prog:#deebff; --prog-fg:#0747a6; --todo:#dfe1e6; --todo-fg:#42526e; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Roboto,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+         background:var(--bg); color:var(--text); font-size:14px; }
+  header { background:var(--accent); color:#fff; padding:10px 18px; display:flex; align-items:center; gap:14px; }
+  header b { font-size:16px; } header .sub { opacity:.8; font-size:12px; }
+  header .grow { flex:1; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--border); background:#fff; color:var(--text);
+           border-radius:4px; padding:6px 12px; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.primary:hover { background:#0747a6; } button:hover { background:#f4f5f7; }
+  button.sm { padding:3px 9px; font-size:12.5px; }
+  input, textarea, select { font:inherit; width:100%; padding:7px 9px; border:1px solid var(--border);
+           border-radius:4px; background:#fff; color:var(--text); }
+  textarea { resize:vertical; min-height:70px; }
+  .wrap { display:grid; grid-template-columns:minmax(340px,1fr) 1.4fr; gap:14px; padding:14px; align-items:start; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:8px; }
+  .panel h2 { font-size:13px; margin:0; padding:11px 14px; border-bottom:1px solid var(--border); color:var(--muted);
+              text-transform:uppercase; letter-spacing:.4px; display:flex; align-items:center; gap:8px; }
+  .toolbar { display:flex; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); }
+  .toolbar input { flex:1; }
+  .list { max-height:72vh; overflow:auto; }
+  .row { display:flex; gap:8px; align-items:center; padding:9px 14px; border-bottom:1px solid #f0f1f3; cursor:pointer; }
+  .row:hover { background:var(--accent2); } .row.sel { background:var(--accent2); box-shadow:inset 3px 0 0 var(--accent); }
+  .row .key { color:var(--accent); font-weight:600; font-size:12.5px; white-space:nowrap; }
+  .row .summ { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag { font-size:11px; padding:2px 7px; border-radius:3px; white-space:nowrap; background:var(--todo); color:var(--todo-fg); }
+  .tag.type { background:#eae6ff; color:#403294; } .tag.done { background:var(--done); color:var(--done-fg); }
+  .tag.inprogress { background:var(--prog); color:var(--prog-fg); }
+  .detail { padding:16px; } .detail.empty { color:var(--muted); padding:40px; text-align:center; }
+  .detail h1 { font-size:19px; margin:0 0 4px; } .detail .dkey { color:var(--accent); font-weight:600; }
+  .field { margin:14px 0; } .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:600; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0 12px; }
+  .transitions { display:flex; flex-wrap:wrap; gap:6px; }
+  .att { display:flex; flex-wrap:wrap; gap:10px; }
+  .att a { display:block; border:1px solid var(--border); border-radius:6px; padding:6px; text-align:center;
+           text-decoration:none; color:var(--text); font-size:11px; width:104px; overflow:hidden; }
+  .att img { width:90px; height:60px; object-fit:cover; border-radius:3px; display:block; margin:0 auto 4px; }
+  .att .file { width:90px; height:60px; display:flex; align-items:center; justify-content:center; font-size:26px;
+               background:#f4f5f7; border-radius:3px; margin:0 auto 4px; }
+  .cmt { border-top:1px solid #f0f1f3; padding:9px 0; } .cmt .who { font-weight:600; } .cmt .when { color:var(--muted); font-size:11.5px; margin-left:6px; }
+  .cmt .body { white-space:pre-wrap; margin-top:3px; }
+  .muted { color:var(--muted); } .err { color:#bf2600; padding:8px 14px; }
+  dialog { border:1px solid var(--border); border-radius:10px; padding:0; width:min(520px,92vw); }
+  dialog h2 { margin:0; } dialog .body { padding:16px; } dialog .foot { display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid var(--border); }
+  ::backdrop { background:rgba(9,30,66,.5); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+</style>
+</head>
+<body>
+<header>
+  <b>jira820</b><span class="sub" id="serverInfo">·</span>
+  <span class="grow"></span>
+  <button class="primary" onclick="openCreate()">+ 새 티켓</button>
+</header>
+
+<div class="wrap">
+  <div class="panel">
+    <h2>티켓 <span id="count" class="muted"></span></h2>
+    <div class="toolbar">
+      <input id="jql" placeholder='JQL (예: project=DEMO AND status="In Progress")' />
+      <button class="sm" onclick="search()">검색</button>
+    </div>
+    <div class="list" id="list"></div>
+  </div>
+
+  <div class="panel">
+    <h2>상세</h2>
+    <div id="detail" class="detail empty">왼쪽에서 티켓을 선택하거나 새 티켓을 만드세요.</div>
+  </div>
+</div>
+
+<dialog id="createDlg">
+  <h2 style="padding:14px 16px;border-bottom:1px solid var(--border)">새 티켓</h2>
+  <div class="body">
+    <div class="field"><label>타입</label><select id="c_type"></select></div>
+    <div class="field"><label>요약 *</label><input id="c_summary" placeholder="제목"></div>
+    <div class="field"><label>설명</label><textarea id="c_desc" placeholder="설명 (이미지: 먼저 첨부 후 !파일명.png! 로 참조)"></textarea></div>
+    <div class="err" id="c_err"></div>
+  </div>
+  <div class="foot">
+    <button onclick="document.getElementById('createDlg').close()">취소</button>
+    <button class="primary" onclick="doCreate()">생성</button>
+  </div>
+</dialog>
+
+<script>
+const API = ""; // same origin
+let PROJECT = "DEMO";
+let CUR = null;   // selected issue key
+
+async function api(path, opts={}) {
+  const r = await fetch(API + path, opts);
+  if (r.status === 204) return null;
+  const ct = r.headers.get("content-type") || "";
+  const body = ct.includes("json") ? await r.json() : await r.text();
+  if (!r.ok) throw new Error((body && body.errorMessages && body.errorMessages[0]) || ("HTTP " + r.status));
+  return body;
+}
+const esc = s => (s==null?"":String(s)).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const catClass = c => c==="done"?"done":c==="indeterminate"?"inprogress":"";
+
+async function init() {
+  try {
+    const info = await api("/rest/api/2/serverInfo");
+    const projs = await api("/rest/api/2/project");
+    PROJECT = (projs[0]||{}).key || "DEMO";
+    document.getElementById("serverInfo").textContent =
+      `Jira DC ${info.version} mock · 프로젝트 ${PROJECT}`;
+    document.getElementById("jql").value = `project=${PROJECT} ORDER BY updated DESC`;
+    // issue types for create form
+    const meta = await api("/rest/api/2/issue/createmeta");
+    const types = ((meta.projects[0]||{}).issuetypes||[]).filter(t=>!t.subtask);
+    document.getElementById("c_type").innerHTML =
+      types.map(t=>`<option value="${esc(t.name)}">${esc(t.name)}</option>`).join("");
+    search();
+  } catch(e){ document.getElementById("list").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+async function search() {
+  const jql = document.getElementById("jql").value || `project=${PROJECT}`;
+  const q = encodeURIComponent(jql);
+  const d = await api(`/rest/api/2/search?jql=${q}&maxResults=50&fields=summary,status,issuetype,assignee`);
+  document.getElementById("count").textContent = `${d.total}건`;
+  document.getElementById("list").innerHTML = d.issues.map(it=>{
+    const f=it.fields, cat=f.status.statusCategory.key;
+    return `<div class="row" data-k="${it.key}" onclick="select('${it.key}')">
+      <span class="tag type">${esc(f.issuetype.name)}</span>
+      <span class="key">${it.key}</span>
+      <span class="summ">${esc(f.summary)}</span>
+      <span class="tag ${catClass(cat)}">${esc(f.status.name)}</span>
+    </div>`;}).join("") || `<div class="muted" style="padding:14px">결과 없음</div>`;
+  if (CUR) { const el=document.querySelector(`.row[data-k="${CUR}"]`); if(el) el.classList.add("sel"); }
+}
+
+async function select(key) {
+  CUR = key;
+  document.querySelectorAll(".row").forEach(r=>r.classList.toggle("sel", r.dataset.k===key));
+  const box = document.getElementById("detail");
+  box.className = "detail"; box.innerHTML = "불러오는 중…";
+  try {
+    const it = await api(`/rest/api/2/issue/${key}`);
+    const tr = await api(`/rest/api/2/issue/${key}/transitions`);
+    render(it, tr.transitions);
+  } catch(e){ box.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+function render(it, transitions) {
+  const f = it.fields;
+  const atts = (f.attachment||[]).map(a=>{
+    const img = (a.mimeType||"").startsWith("image/");
+    return `<a href="${a.content}" target="_blank" title="${esc(a.filename)}">
+      ${img?`<img src="${a.content}">`:`<div class="file">📄</div>`}
+      <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.filename)}</div></a>`;
+  }).join("");
+  const box = document.getElementById("detail");
+  box.className = "detail";
+  box.innerHTML = `
+    <div class="meta">
+      <span class="tag type">${esc(f.issuetype.name)}</span>
+      <span class="dkey">${it.key}</span>
+      <span class="tag ${catClass(f.status.statusCategory.key)}">${esc(f.status.name)}</span>
+    </div>
+    <div class="field"><label>요약</label><input id="d_summary" value="${esc(f.summary)}"></div>
+    <div class="field"><label>설명</label><textarea id="d_desc">${esc(f.description||"")}</textarea></div>
+    <div class="field"><label>담당자 (username)</label><input id="d_assignee" value="${esc((f.assignee||{}).name||"")}" placeholder="비우면 미지정"></div>
+    <div class="actions">
+      <button class="primary sm" onclick="saveIssue()">속성 저장</button>
+      <button class="sm" onclick="delIssue()">삭제</button>
+    </div>
+    <div class="field"><label>상태 전이</label><div class="transitions">
+      ${transitions.map(t=>`<button class="sm" onclick="transition('${t.id}')">${esc(t.to.name)}</button>`).join("") || '<span class="muted">전이 없음</span>'}
+    </div></div>
+    <div class="field"><label>첨부파일 · 이미지</label>
+      <div class="att">${atts || '<span class="muted">없음</span>'}</div>
+      <div style="margin-top:8px"><input type="file" id="d_file" multiple>
+        <button class="sm" onclick="upload()">업로드</button></div>
+    </div>
+    <div class="field"><label>코멘트</label>
+      <div id="d_comments"></div>
+      <textarea id="d_newcmt" placeholder="코멘트 입력 (이미지: 첨부 후 !파일명.png! 로 참조)"></textarea>
+      <div style="margin-top:6px"><button class="sm" onclick="addComment()">코멘트 추가</button></div>
+    </div>`;
+  loadComments(it.key);
+}
+
+async function loadComments(key) {
+  const d = await api(`/rest/api/2/issue/${key}/comment`);
+  document.getElementById("d_comments").innerHTML = (d.comments||[]).map(c=>`
+    <div class="cmt"><span class="who">${esc((c.author||{}).displayName||"")}</span>
+      <span class="when">${esc((c.created||"").slice(0,16).replace("T"," "))}</span>
+      <div class="body">${esc(c.body)}</div></div>`).join("") || '<span class="muted">코멘트 없음</span>';
+}
+
+async function saveIssue() {
+  const fields = { summary: val("d_summary"), description: val("d_desc") };
+  const asg = val("d_assignee"); fields.assignee = asg ? {name:asg} : null;
+  await api(`/rest/api/2/issue/${CUR}`, {method:"PUT", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({fields})});
+  await select(CUR); search();
+}
+async function delIssue() {
+  if(!confirm(`${CUR} 삭제?`)) return;
+  await api(`/rest/api/2/issue/${CUR}`, {method:"DELETE"});
+  CUR=null; document.getElementById("detail").className="detail empty";
+  document.getElementById("detail").textContent="삭제됨."; search();
+}
+async function transition(id) {
+  await api(`/rest/api/2/issue/${CUR}/transitions`, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({transition:{id}})});
+  await select(CUR); search();
+}
+async function addComment() {
+  const body = val("d_newcmt"); if(!body.trim()) return;
+  await api(`/rest/api/2/issue/${CUR}/comment`, {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({body})});
+  await select(CUR);
+}
+async function upload() {
+  const inp = document.getElementById("d_file");
+  if(!inp.files.length) return;
+  const fd = new FormData();
+  for(const f of inp.files) fd.append("file", f);
+  await api(`/rest/api/2/issue/${CUR}/attachments`, {method:"POST", body: fd});
+  await select(CUR);
+}
+
+function openCreate(){ document.getElementById("c_err").textContent=""; document.getElementById("createDlg").showModal(); }
+async function doCreate() {
+  try {
+    const fields = { project:{key:PROJECT}, issuetype:{name:val("c_type")}, summary:val("c_summary") };
+    const desc = val("c_desc"); if(desc) fields.description = desc;
+    if(!fields.summary.trim()){ document.getElementById("c_err").textContent="요약을 입력하세요."; return; }
+    const res = await api(`/rest/api/2/issue`, {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({fields})});
+    document.getElementById("createDlg").close();
+    document.getElementById("c_summary").value=""; document.getElementById("c_desc").value="";
+    await search(); select(res.key);
+  } catch(e){ document.getElementById("c_err").textContent = e.message; }
+}
+const val = id => document.getElementById(id).value;
+document.getElementById("jql").addEventListener("keydown", e=>{ if(e.key==="Enter") search(); });
+init();
+</script>
+</body>
+</html>

@@ -103,8 +103,22 @@ class Serializer:
             })
         return out or None
 
+    def attachment_obj(self, a, base_url: str = "") -> dict:
+        fn = a["filename"]
+        obj = {
+            "self": f"{base_url}/rest/api/2/attachment/{a['id']}",
+            "id": str(a["id"]), "filename": fn,
+            "author": self.user_obj(a.get("author") or "admin"),
+            "created": dt(a.get("created")), "size": a.get("size", 0),
+            "mimeType": a.get("mimeType", "application/octet-stream"),
+            "content": f"{base_url}/secure/attachment/{a['id']}/{fn}",
+        }
+        if (a.get("mimeType") or "").startswith("image/"):
+            obj["thumbnail"] = f"{base_url}/secure/thumbnail/{a['id']}/{fn}"
+        return obj
+
     # ── issue ──
-    def issue_fields(self, it) -> dict:
+    def issue_fields(self, it, base_url: str = "") -> dict:
         f = {
             "summary": it["summary"], "description": it.get("description"),
             "issuetype": self.issuetype_obj(it["type"]),
@@ -132,6 +146,8 @@ class Serializer:
                       "votes": it.get("votes", 0), "hasVoted": False},
             "fixVersions": [self.version_obj(v) for v in it.get("fixVersions", [])],
             "project": self.project_ref(),
+            "attachment": [self.attachment_obj(self.store.attachments[aid], base_url)
+                           for aid in it.get("attachments", []) if aid in self.store.attachments],
             self.c.sp_field: it.get("sp"),
             self.c.epic_link_field: it.get("epicKey"),
             self.c.sprint_field: self._sprint_field(it),
@@ -171,7 +187,7 @@ class Serializer:
         return {"startAt": 0, "maxResults": len(hist), "total": len(hist), "histories": hist}
 
     def issue_res(self, it, base_url: str, fields: str = "", expand: str = "") -> dict:
-        allf = self.issue_fields(it)
+        allf = self.issue_fields(it, base_url)
         projected = project_fields(allf, fields)
         res = {
             "expand": "renderedFields,names,schema,transitions,operations,editmeta,changelog",

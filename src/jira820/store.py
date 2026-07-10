@@ -47,9 +47,11 @@ class Store:
         self.by_label: dict = {}
         self.by_assignee: dict = {}
         self.epic_children: dict = {}
+        self.attachments: dict = {}   # id -> {id, issueKey, filename, mimeType, size, data, author, created}
         self._counter = 0
         self._comment_seq = 100000
         self._sprint_seq = 0
+        self._attach_seq = 30000
 
         if not seed:
             return  # empty store; caller populates + reindex()
@@ -263,6 +265,37 @@ class Store:
         self.reindex()
         self._touch_persist()
 
+    # ── attachments (files/images on issues; referenced from description/comment markup) ──
+    def add_attachment(self, key: str, filename: str, mimetype: str, data: bytes, author: str = "admin") -> dict:
+        self._require_writable()
+        it = self.get_issue(key)
+        self._attach_seq += 1
+        aid = str(self._attach_seq)
+        att = {"id": aid, "issueKey": key, "filename": filename or f"file-{aid}",
+               "mimeType": mimetype or "application/octet-stream", "size": len(data or b""),
+               "data": bytes(data or b""), "author": author, "created": self.now}
+        self.attachments[aid] = att
+        it.setdefault("attachments", []).append(aid)
+        it["updated"] = self.now
+        self._touch_persist()
+        return att
+
+    def get_attachment(self, aid) -> dict:
+        a = self.attachments.get(str(aid))
+        if not a:
+            raise JiraError(404, f"Attachment {aid} does not exist.")
+        return a
+
+    def delete_attachment(self, aid):
+        self._require_writable()
+        a = self.attachments.pop(str(aid), None)
+        if not a:
+            raise JiraError(404, f"Attachment {aid} does not exist.")
+        it = self.issues.get(a["issueKey"])
+        if it and it.get("attachments"):
+            it["attachments"] = [x for x in it["attachments"] if x != str(aid)]
+        self._touch_persist()
+
     # ── agile mutations ──
     def create_sprint(self, board_id: int, name: str, goal: str = "", state: str = "future") -> dict:
         self._require_writable()
@@ -375,6 +408,7 @@ class Store:
             "versions": self.versions,
             "activity": {u: [_ev_to_json(e) for e in evs] for u, evs in self.activity.items()},
             "confluence": {u: [_page_to_json(p) for p in ps] for u, ps in self.confluence.items()},
+            "attachments": {aid: _att_to_json(a) for aid, a in self.attachments.items()},
         }
 
     def _load(self, path):
@@ -388,13 +422,29 @@ class Store:
         self.issues = {k: _issue_from_json(it) for k, it in d.get("issues", {}).items()}
         self.activity = {u: [_ev_from_json(e) for e in evs] for u, evs in d.get("activity", {}).items()}
         self.confluence = {u: [_page_from_json(p) for p in ps] for u, ps in d.get("confluence", {}).items()}
+        self.attachments = {aid: _att_from_json(a) for aid, a in d.get("attachments", {}).items()}
         self.reindex()
         self._counter = self._max_counter()
         self._sprint_seq = max(self.sprints) if self.sprints else 0
+        self._attach_seq = max((int(x) for x in self.attachments), default=30000)
 
 
 # ── (de)serialization helpers for persistence ──
+import base64  # noqa: E402
+
 from .serialize import iid as _iid  # noqa: E402
+
+
+def _att_to_json(a):
+    return {**{k: v for k, v in a.items() if k not in ("data", "created")},
+            "created": _d(a.get("created")),
+            "data": base64.b64encode(a.get("data") or b"").decode("ascii")}
+
+
+def _att_from_json(a):
+    return {**{k: v for k, v in a.items() if k not in ("data", "created")},
+            "created": _parse_date(a.get("created")),
+            "data": base64.b64decode(a.get("data") or "")}
 
 
 def _parse_date(v):

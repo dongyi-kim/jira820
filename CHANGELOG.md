@@ -1,5 +1,13 @@
 # 변경 이력
 
+## 0.2.0
+
+- **첨부파일/이미지 지원**: 이슈에 파일 업로드(멀티파트)·다운로드·목록(`fields.attachment`)·삭제.
+  설명/코멘트 body 에 위키 마크업(`!image.png!`, `[^file.pdf]`)으로 참조하는 실제 Jira 흐름 지원.
+  엔드포인트: `POST issue/{key}/attachments`, `GET/DELETE attachment/{id}`,
+  `GET /secure/attachment/{id}/{filename}`(+`/secure/thumbnail/...`). 파일 영속화(base64).
+- 의존성에 `python-multipart` 추가.
+
 ## 0.1.0
 
 첫 릴리스.

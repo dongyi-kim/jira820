@@ -7,7 +7,7 @@ import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import server_agile, server_read, server_write
+from . import server_agile, server_attach, server_read, server_write
 from .config import Config, load_config
 from .store import JiraError, Store
 
@@ -20,7 +20,7 @@ def make_app(store: Store = None, config: Config = None) -> FastAPI:
     """Build the app. Pass a `store` to inject your own data source; otherwise one is seeded."""
     if store is None:
         store = build_store(config)
-    app = FastAPI(title=f"Jira DC {store.config.server_version} mock", version="0.1.0")
+    app = FastAPI(title=f"Jira DC {store.config.server_version} mock", version="0.2.0")
     app.state.store = store
 
     @app.middleware("http")
@@ -37,4 +37,5 @@ def make_app(store: Store = None, config: Config = None) -> FastAPI:
     app.include_router(server_read.router)
     app.include_router(server_write.router)
     app.include_router(server_agile.router)
+    app.include_router(server_attach.router)
     return app

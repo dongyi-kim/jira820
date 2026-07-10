@@ -1,8 +1,8 @@
 from conftest import ok
 
 from fastapi.testclient import TestClient
-from jira_dc_mock import make_app
-from jira_dc_mock.config import Config
+from jira820 import make_app
+from jira820.config import Config
 
 
 def _create(client, pk, summary="new ticket", itype="Task"):

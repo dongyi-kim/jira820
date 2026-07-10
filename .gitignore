@@ -16,7 +16,7 @@ env/
 .coverage
 htmlcov/
 
-# Mock runtime state (JIRAMOCK_PERSIST)
+# Mock runtime state (JIRA820_PERSIST)
 *.state.json
 state.json
 

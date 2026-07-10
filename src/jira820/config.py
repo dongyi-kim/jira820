@@ -1,4 +1,4 @@
-"""Configuration: JIRAMOCK_* environment variables merged over an optional YAML file.
+"""Configuration: JIRA820_* environment variables merged over an optional YAML file.
 
 Precedence: environment variable > YAML value > built-in default.
 """
@@ -81,6 +81,9 @@ class Config:
     epic_link_field: str = "customfield_10008"
     sprint_field: str = "customfield_10007"
 
+    # issue-type name treated as a sub-task (drives the issuetype.subtask boolean)
+    subtask_type: str = SUBTASK_TYPE
+
     # behaviour
     readonly: bool = False
     persist: Optional[str] = None
@@ -118,29 +121,30 @@ def _parse_date(v: Any, default: date) -> date:
 
 
 def load_config() -> Config:
-    """Build a Config from JIRAMOCK_CONFIG (YAML) overlaid by JIRAMOCK_* env vars."""
+    """Build a Config from JIRA820_CONFIG (YAML) overlaid by JIRA820_* env vars."""
     ycfg: dict = {}
-    cfg_path = os.getenv("JIRAMOCK_CONFIG")
+    cfg_path = os.getenv("JIRA820_CONFIG")
     if cfg_path and yaml is not None:
         with open(cfg_path, "r", encoding="utf-8") as fh:
             ycfg = yaml.safe_load(fh) or {}
 
     c = Config()
     c.raw = ycfg
-    c.host = str(_pick("JIRAMOCK_HOST", ycfg.get("host"), c.host))
-    c.port = _as_int(_pick("JIRAMOCK_PORT", ycfg.get("port"), c.port), c.port)
-    c.latency_ms = _as_int(_pick("JIRAMOCK_LATENCY_MS", ycfg.get("latency_ms"), c.latency_ms), 0)
-    c.seed = str(_pick("JIRAMOCK_SEED", ycfg.get("seed"), c.seed))
-    c.base_date = _parse_date(_pick("JIRAMOCK_DATE", ycfg.get("date"), None), date.today())
-    c.project_key = str(_pick("JIRAMOCK_PROJECT_KEY", ycfg.get("project_key"), c.project_key))
-    c.project_name = str(_pick("JIRAMOCK_PROJECT_NAME", ycfg.get("project_name"), c.project_name))
-    c.server_version = str(_pick("JIRAMOCK_SERVER_VERSION", ycfg.get("server_version"), c.server_version))
-    c.locale = str(_pick("JIRAMOCK_LOCALE", ycfg.get("locale"), c.locale)).lower()
-    c.sp_field = str(_pick("JIRAMOCK_SP_FIELD", ycfg.get("sp_field"), c.sp_field))
-    c.epic_link_field = str(_pick("JIRAMOCK_EPIC_LINK_FIELD", ycfg.get("epic_link_field"), c.epic_link_field))
-    c.sprint_field = str(_pick("JIRAMOCK_SPRINT_FIELD", ycfg.get("sprint_field"), c.sprint_field))
-    c.readonly = _as_bool(_pick("JIRAMOCK_READONLY", ycfg.get("readonly"), c.readonly))
-    c.persist = _pick("JIRAMOCK_PERSIST", ycfg.get("persist"), None) or None
+    c.host = str(_pick("JIRA820_HOST", ycfg.get("host"), c.host))
+    c.port = _as_int(_pick("JIRA820_PORT", ycfg.get("port"), c.port), c.port)
+    c.latency_ms = _as_int(_pick("JIRA820_LATENCY_MS", ycfg.get("latency_ms"), c.latency_ms), 0)
+    c.seed = str(_pick("JIRA820_SEED", ycfg.get("seed"), c.seed))
+    c.base_date = _parse_date(_pick("JIRA820_DATE", ycfg.get("date"), None), date.today())
+    c.project_key = str(_pick("JIRA820_PROJECT_KEY", ycfg.get("project_key"), c.project_key))
+    c.project_name = str(_pick("JIRA820_PROJECT_NAME", ycfg.get("project_name"), c.project_name))
+    c.server_version = str(_pick("JIRA820_SERVER_VERSION", ycfg.get("server_version"), c.server_version))
+    c.locale = str(_pick("JIRA820_LOCALE", ycfg.get("locale"), c.locale)).lower()
+    c.sp_field = str(_pick("JIRA820_SP_FIELD", ycfg.get("sp_field"), c.sp_field))
+    c.epic_link_field = str(_pick("JIRA820_EPIC_LINK_FIELD", ycfg.get("epic_link_field"), c.epic_link_field))
+    c.sprint_field = str(_pick("JIRA820_SPRINT_FIELD", ycfg.get("sprint_field"), c.sprint_field))
+    c.subtask_type = str(_pick("JIRA820_SUBTASK_TYPE", ycfg.get("subtask_type"), c.subtask_type))
+    c.readonly = _as_bool(_pick("JIRA820_READONLY", ycfg.get("readonly"), c.readonly))
+    c.persist = _pick("JIRA820_PERSIST", ycfg.get("persist"), None) or None
 
     if ycfg.get("modules"):
         c.modules = list(ycfg["modules"])

@@ -1,7 +1,7 @@
 import os
 
-from jira_dc_mock import build_store, load_config
-from jira_dc_mock.config import Config
+from jira820 import build_store, load_config
+from jira820.config import Config
 
 
 def test_determinism_same_seed():
@@ -21,9 +21,9 @@ def test_different_seed_varies():
 
 
 def test_env_override(monkeypatch):
-    monkeypatch.setenv("JIRAMOCK_PROJECT_KEY", "ACME")
-    monkeypatch.setenv("JIRAMOCK_SEED", "9")
-    monkeypatch.setenv("JIRAMOCK_LOCALE", "ko")
+    monkeypatch.setenv("JIRA820_PROJECT_KEY", "ACME")
+    monkeypatch.setenv("JIRA820_SEED", "9")
+    monkeypatch.setenv("JIRA820_LOCALE", "ko")
     c = load_config()
     assert c.project_key == "ACME"
     assert c.seed == "9"

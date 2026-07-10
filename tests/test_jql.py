@@ -1,5 +1,5 @@
-from jira_dc_mock import build_store, jql
-from jira_dc_mock.config import Config
+from jira820 import build_store, jql
+from jira820.config import Config
 
 
 def _store():

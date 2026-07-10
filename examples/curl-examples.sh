@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Example requests against a running jira-dc-8.20-mock (default http://127.0.0.1:8080).
+# Example requests against a running jira820 (default http://127.0.0.1:8080).
 set -euo pipefail
 BASE=${BASE:-http://127.0.0.1:8080}
 PK=${PK:-DEMO}

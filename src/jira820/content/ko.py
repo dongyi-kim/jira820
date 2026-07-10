@@ -1,4 +1,4 @@
-"""Korean content pools (JIRAMOCK_LOCALE=ko). Business-neutral, generic software domain."""
+"""Korean content pools (JIRA820_LOCALE=ko). Business-neutral, generic software domain."""
 
 FIRST_NAMES = [
     "도윤", "서준", "하준", "지호", "예준", "민재", "수아", "지우", "서연", "하은",

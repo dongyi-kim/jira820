@@ -1,5 +1,5 @@
-from jira_dc_mock import build_store
-from jira_dc_mock.config import Config
+from jira820 import build_store
+from jira820.config import Config
 
 
 def test_persist_survives_reload(tmp_path):

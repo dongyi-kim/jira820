@@ -6,8 +6,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import pytest
 from fastapi.testclient import TestClient
 
-from jira_dc_mock import make_app
-from jira_dc_mock.config import Config
+from jira820 import make_app
+from jira820.config import Config
 
 
 @pytest.fixture

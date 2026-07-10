@@ -3,7 +3,7 @@
 Public API:
     make_app(store=None, config=None) -> FastAPI     # build the ASGI app
     build_store(config=None) -> Store                # build/seed a data store
-    load_config() -> Config                          # read JIRAMOCK_* env + YAML
+    load_config() -> Config                          # read JIRA820_* env + YAML
 """
 
 from .config import Config, load_config

@@ -1,7 +1,7 @@
 """Mutable in-memory store: seeded deterministically, then mutated by write endpoints.
 
 Holds issues, users, boards, sprints, versions, activity and Confluence pages, plus indexes.
-Optionally persists to a JSON file (JIRAMOCK_PERSIST) so a client's changes survive restarts.
+Optionally persists to a JSON file (JIRA820_PERSIST) so a client's changes survive restarts.
 """
 
 from __future__ import annotations
@@ -30,7 +30,9 @@ class JiraError(Exception):
 
 
 class Store:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, seed: bool = True):
+        # seed=False builds an empty store; fill .issues/.users/... yourself then call .reindex()
+        # (used to inject an external world while reusing this package's serializers/endpoints).
         self.config = config
         self.workflow = Workflow(config)
         self.serializer = Serializer(self)
@@ -49,6 +51,8 @@ class Store:
         self._comment_seq = 100000
         self._sprint_seq = 0
 
+        if not seed:
+            return  # empty store; caller populates + reindex()
         if config.persist and os.path.exists(config.persist):
             self._load(config.persist)
         else:
@@ -90,7 +94,7 @@ class Store:
 
     def _require_writable(self):
         if self.config.readonly:
-            raise JiraError(403, "This mock is running in read-only mode (JIRAMOCK_READONLY).")
+            raise JiraError(403, "This mock is running in read-only mode (JIRA820_READONLY).")
 
     def get_issue(self, key: str) -> dict:
         it = self.issues.get(key)

@@ -1,5 +1,5 @@
-# Example jira-dc-8.20-mock config.  Point at it with JIRAMOCK_CONFIG=examples/config.yaml
-# Any JIRAMOCK_* environment variable overrides the matching key here.
+# Example jira820 config.  Point at it with JIRA820_CONFIG=examples/config.yaml
+# Any JIRA820_* environment variable overrides the matching key here.
 
 # --- server ---
 host: 127.0.0.1
@@ -18,6 +18,7 @@ locale: en             # en | ko
 sp_field: customfield_10004
 epic_link_field: customfield_10008
 sprint_field: customfield_10007
+subtask_type: Sub-task   # issue-type name treated as a sub-task (issuetype.subtask=true)
 
 # --- behaviour ---
 readonly: false        # set true to reject all writes with 403

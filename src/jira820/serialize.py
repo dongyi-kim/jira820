@@ -58,13 +58,12 @@ class Serializer:
         }
 
     def issuetype_obj(self, name: str) -> dict:
-        from .config import SUBTASK_TYPE
         tid = self.type_map.get(name, "0")
         slug = name.lower().replace(" ", "").replace("-", "")
         return {
             "self": f"/rest/api/2/issuetype/{tid}", "id": tid, "description": "",
             "iconUrl": f"/secure/viewavatar?avatarType=issuetype&avatarId=10300&type={slug}",
-            "name": name, "subtask": name == SUBTASK_TYPE, "avatarId": 10300,
+            "name": name, "subtask": name == self.c.subtask_type, "avatarId": 10300,
         }
 
     def user_obj(self, uid: str) -> dict:

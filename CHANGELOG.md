@@ -1,5 +1,15 @@
 # 변경 이력
 
+## 0.4.0
+
+- **renderedFields / renderedBody (위키→HTML 서버 렌더)**: `GET issue/{key}?expand=renderedFields` 응답에
+  `renderedFields.description`(HTML), 코멘트에 `renderedBody`(HTML) 제공 — 실 Jira DC 8.20.8 처럼 서버가 렌더.
+  지원: heading(`hN.`)·bold/italic·monospace(`{{..}}`)·code(`{code}`/`{noformat}`)·blockquote(`{quote}`/`bq.`)·
+  panel(`{panel}`)·callout(`{note}`/`{info}`/`{warning}`/`{tip}`)·table(`||h||`/`|c|`)·list(`*`,`#`)·
+  image(`!url!`)·link(`[t|url]`)·mention(`[~user]`).
+- 맨션은 실 Jira 형태 `<a class="user-hover" href="/secure/ViewProfile.jspa?name=..">표시명</a>` 로 렌더
+  (username→displayName 해석). 새 모듈 `jira820/render.py`.
+
 ## 0.3.0
 
 - **데모 웹 UI** 추가(`demo/index.html`, 단일 파일 바닐라 JS). 서버가 `/demo` 에서 서빙하고 `/` → `/demo/`

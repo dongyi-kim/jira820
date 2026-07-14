@@ -10,6 +10,8 @@ import hashlib
 from datetime import date
 from typing import Optional
 
+from .render import render_wiki
+
 # internal category -> real Jira DC statusCategory
 JIRA_CAT = {
     "todo": {"id": 2, "key": "new", "colorName": "blue-gray", "name": "To Do"},
@@ -196,7 +198,14 @@ class Serializer:
         }
         if expand and "changelog" in expand:
             res["changelog"] = self.changelog(it)
+        if expand and "renderedFields" in expand:
+            # 실 Jira DC 처럼 wiki 소스를 서버 렌더한 HTML 제공 (table/image/code/quote/panel/맨션 등)
+            res["renderedFields"] = {"description": render_wiki(it.get("description"), self._mention_name)}
         return res
+
+    def _mention_name(self, uid):
+        u = self.store.users.get(uid)
+        return u["displayName"] if u else uid
 
     def comment_obj(self, key: str, idx: int, c) -> dict:
         au = self.user_obj(c["author"])
@@ -206,6 +215,7 @@ class Serializer:
         body = c["body"] if "body" in c else f"({c['kind']}) {c['text']}"
         return {"self": f"/rest/api/2/issue/{key}/comment/{cid}", "id": str(cid),
                 "author": au, "updateAuthor": au, "body": body,
+                "renderedBody": render_wiki(body, self._mention_name),   # 렌더된 HTML(맨션 이름 해석)
                 "created": when, "updated": upd}
 
     def worklog_obj(self, key: str, idx: int, w) -> dict:

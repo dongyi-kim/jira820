@@ -2,16 +2,18 @@
 
 **Jira Data Center 8.20.8** 을 로컬에서 흉내 내는 **상태형(stateful) 읽기+쓰기 mock 서버**입니다.
 REST v2 는 물론 Agile(`/rest/agile/1.0/`) API 까지 — **실제 Scrum 스프린트와 Kanban 보드**를 포함합니다.
-또한 **통합 검색**(JQL `text ~`, 연동 **Confluence DC 9.2.4** 형태의 CQL 검색 `/rest/api/search`)과
-**멀티 프로젝트/스페이스**(소비자가 자체 데이터를 additive 주입)까지 지원합니다.
 결정적으로 생성된 그럴듯한 프로젝트 데이터를 서빙하고 **변경(생성/수정/전이/코멘트/워크로그, 스프린트·백로그
 이동)까지 받아들이므로**, Jira 인스턴스·라이선스·DB 없이 **티켓 뷰어 *및* 작성 클라이언트**를 개발·테스트할 수 있습니다.
 
-```bash
-pip install jira820          # (PyPI 등록 후)
-# 또는 저장소에서 직접:
-pip install "jira820 @ git+https://github.com/dongyi-kim/jira820@v0.2.0"
+**연동 제품 버전(고정):** Jira DC **8.20.8** · 연동 Confluence DC **9.2.4**.
+CQL 검색(`/rest/api/search`) 응답은 이 Confluence 9.2.4 형태를 따릅니다.
+버전 표기는 `JIRA820_CONFLUENCE_VERSION` / `JIRA820_SERVER_VERSION` 으로 바꿀 수 있습니다.
 
+또한 **통합 검색**(JQL `text ~`, Confluence CQL 검색)과 **멀티 프로젝트/스페이스**(소비자가 자체
+데이터를 additive 주입)를 지원합니다.
+
+```bash
+pip install jira820
 jira820                       # -> http://127.0.0.1:8080  (브라우저 열면 데모 UI)
 ```
 
@@ -132,18 +134,14 @@ pip install -e ".[test]"
 pytest -q
 ```
 
-## PyPI 배포 (Trusted Publishing, 토큰 불필요)
-
-`.github/workflows/publish.yml` 가 태그(`v*`) 푸시 시 **PyPI Trusted Publishing(OIDC)** 로 자동 배포합니다.
-최초 1회 PyPI 에서 Trusted Publisher 를 등록하세요: Project `jira820` / Owner `dongyi-kim` / Repository `jira820`
-/ Workflow `publish.yml` / Environment `pypi`.
-
 ## 참고 / 한계
 
 - 쓰기 모델은 관대한 단일 테넌트 인메모리 근사입니다 — 클라이언트 구동엔 훌륭하지만 모든 워크플로/권한 규칙을
   충실히 재현하진 않습니다.
 - JQL 은 흔한 형태(`=,!=,>=,<=,>,<,IN,~`, `AND`/`OR`, `ORDER BY`, project/assignee/status/statusCategory/type/
-  labels/sprint/날짜범위)를 지원하며, 인식하지 못한 절은 오류 대신 무시합니다.
+  labels/sprint/날짜범위, `text ~` 전문검색)를 지원하며, 인식하지 못한 절은 오류 대신 무시합니다.
+- Confluence CQL(`space`/`title`/`text`/`siteSearch`/`contributor`/`lastmodified`)은 검색 응답용 subset 만
+  지원합니다(연동 Confluence DC 9.2.4 형태). 인식 못한 절은 무시합니다.
 - Atlassian 과 무관합니다. "Jira" 는 Atlassian 의 상표이며, 이 프로젝트는 로컬 개발·테스트를 위해 공개 REST 형태만
   흉내 냅니다.
 

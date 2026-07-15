@@ -39,7 +39,20 @@ def filter_keys(store, jql: str) -> list:
 
 
 def _split_and(group: str):
-    group = group.strip().strip("()").strip()
+    group = group.strip()
+    # 전체를 감싼 괄호쌍만 벗긴다(첫 '(' 가 마지막 ')' 와 매칭될 때). in (...) 의 닫는 괄호는 보존.
+    if group.startswith("(") and group.endswith(")"):
+        depth, wrap = 0, True
+        for i, ch in enumerate(group):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0 and i != len(group) - 1:
+                    wrap = False
+                    break
+        if wrap:
+            group = group[1:-1].strip()
     return re.split(r"(?i)\s+and\s+", group) if group else []
 
 
@@ -172,8 +185,20 @@ def _pred(store, clause):
         return _date_pred(lambda it: it.get("updated"), op, v0, today)
     if field in ("due", "duedate"):
         return _date_pred(lambda it: it.get("due"), op, v0, today)
-    if field == "summary" and op == "~":
-        return lambda it: v0.lower() in (it.get("summary") or "").lower()
+    if op == "~" and field in ("text", "summary", "description", "comment"):
+        needle = (v0 or "").lower()
+
+        def _txt(it):
+            hay = []
+            if field in ("text", "summary"):
+                hay.append(it.get("summary") or "")
+            if field in ("text", "description"):
+                hay.append(it.get("description") or "")
+            if field in ("text", "comment"):
+                for c in it.get("comments", []):
+                    hay.append(c.get("body") or c.get("text") or "")
+            return needle in " ".join(hay).lower()
+        return _txt
     return None  # unknown clause -> ignore
 
 

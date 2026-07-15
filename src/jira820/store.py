@@ -377,6 +377,20 @@ class Store:
         out.sort(key=lambda c: c["created"], reverse=True)
         return out
 
+    def confluence_pages(self):
+        """검색용 평면 Confluence 페이지 코퍼스 — (title, space) 로 유니크.
+        각 항목: {id, title, body?, space, author, date, time?, action?}."""
+        import hashlib
+        seen = {}
+        for uid, pages in self.confluence.items():
+            for p in pages:
+                key = (p.get("title") or "", str(p.get("space") or ""))
+                if key in seen:
+                    continue
+                pid = int(hashlib.md5(("%s|%s" % key).encode("utf-8")).hexdigest()[:8], 16)
+                seen[key] = dict(p, author=uid, id=pid)
+        return list(seen.values())
+
     def sprint_json(self, sid) -> dict:
         s = self.sprints[sid]
         from .serialize import dt as _dt

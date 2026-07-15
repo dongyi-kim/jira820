@@ -267,18 +267,27 @@ def activity(request: Request, streams: str = "", maxResults: int = 20):
 
 @router.get("/rest/api/content/search")
 def content_search(request: Request, cql: str = "", limit: int = 25, expand: str = ""):
+    """Confluence 콘텐츠 검색 — CQL(space/title/text/siteSearch/contributor/lastmodified) 지원."""
+    from . import cql as cqlmod
+    from .serialize import conf_content_obj
     s = _store(request)
-    exp = {e.strip() for e in expand.split(",") if e.strip()}
-    m = re.search(r'contributor\s*=\s*"?([^"\s]+)"?', cql, re.I)
-    user = m.group(1) if m else ""
-    pages = s.confluence.get(user, [])
-    from .serialize import dt as _dt
-    results = []
-    for i, p in enumerate(pages[:limit]):
-        r = {"id": str(9000 + i), "type": "page", "status": "current", "title": p["title"]}
-        if "space" in exp:
-            r["space"] = {"key": p["space"], "name": p["space"]}
-        if "version" in exp:
-            r["version"] = {"when": _dt(p["date"], p.get("time")), "number": 1}
-        results.append(r)
-    return {"results": results, "start": 0, "limit": limit, "size": len(results)}
+    base = _base(request)
+    pages = cqlmod.search_pages(s, cql, limit)
+    results = [conf_content_obj(p, base) for p in pages]
+    return {"results": results, "start": 0, "limit": limit, "size": len(results),
+            "_links": {"base": base, "context": ""}}
+
+
+@router.get("/rest/api/search")
+def cql_search(request: Request, cql: str = "", limit: int = 25, start: int = 0, expand: str = ""):
+    """Confluence 통합 검색 — excerpt(스니펫) 포함 결과. DC 9.x /rest/api/search 형태."""
+    from . import cql as cqlmod
+    from .serialize import conf_search_result
+    s = _store(request)
+    base = _base(request)
+    pages = cqlmod.search_pages(s, cql, start + limit)
+    page_slice = pages[start:start + limit]
+    results = [conf_search_result(p, base) for p in page_slice]
+    return {"results": results, "start": start, "limit": limit, "size": len(results),
+            "totalSize": len(pages), "cqlQuery": cql, "searchDuration": 1,
+            "_links": {"base": base, "context": ""}}

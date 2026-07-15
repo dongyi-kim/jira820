@@ -71,9 +71,10 @@ class Config:
     base_date: date = field(default_factory=date.today)
 
     # project / server identity
-    project_key: str = "DEMO"
-    project_name: str = "Demo Project"
+    project_key: str = "JIRA820"
+    project_name: str = "JIRA820 Sample Project"
     server_version: str = "8.20.8"
+    confluence_version: str = "9.2.4"   # linked Confluence DC (CQL 검색 응답 형태 기준)
     locale: str = "en"  # en | ko
 
     # custom field ids
@@ -138,6 +139,7 @@ def load_config() -> Config:
     c.project_key = str(_pick("JIRA820_PROJECT_KEY", ycfg.get("project_key"), c.project_key))
     c.project_name = str(_pick("JIRA820_PROJECT_NAME", ycfg.get("project_name"), c.project_name))
     c.server_version = str(_pick("JIRA820_SERVER_VERSION", ycfg.get("server_version"), c.server_version))
+    c.confluence_version = str(_pick("JIRA820_CONFLUENCE_VERSION", ycfg.get("confluence_version"), c.confluence_version))
     c.locale = str(_pick("JIRA820_LOCALE", ycfg.get("locale"), c.locale)).lower()
     c.sp_field = str(_pick("JIRA820_SP_FIELD", ycfg.get("sp_field"), c.sp_field))
     c.epic_link_field = str(_pick("JIRA820_EPIC_LINK_FIELD", ycfg.get("epic_link_field"), c.epic_link_field))

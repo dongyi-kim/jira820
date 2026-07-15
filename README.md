@@ -2,6 +2,8 @@
 
 **Jira Data Center 8.20.8** 을 로컬에서 흉내 내는 **상태형(stateful) 읽기+쓰기 mock 서버**입니다.
 REST v2 는 물론 Agile(`/rest/agile/1.0/`) API 까지 — **실제 Scrum 스프린트와 Kanban 보드**를 포함합니다.
+또한 **통합 검색**(JQL `text ~`, 연동 **Confluence DC 9.2.4** 형태의 CQL 검색 `/rest/api/search`)과
+**멀티 프로젝트/스페이스**(소비자가 자체 데이터를 additive 주입)까지 지원합니다.
 결정적으로 생성된 그럴듯한 프로젝트 데이터를 서빙하고 **변경(생성/수정/전이/코멘트/워크로그, 스프린트·백로그
 이동)까지 받아들이므로**, Jira 인스턴스·라이선스·DB 없이 **티켓 뷰어 *및* 작성 클라이언트**를 개발·테스트할 수 있습니다.
 
@@ -54,7 +56,8 @@ JIRA820_CONFIG=examples/config.yaml jira820
 | `JIRA820_LATENCY_MS` | `0` | 요청당 인위적 지연(캐시/성능 테스트) |
 | `JIRA820_SEED` | `0` | (결정적) 데이터셋 변주 |
 | `JIRA820_DATE` | 오늘 | 모든 상대 날짜의 "오늘" 기준 |
-| `JIRA820_PROJECT_KEY` / `JIRA820_PROJECT_NAME` | `DEMO` / `Demo Project` | 프로젝트 식별 |
+| `JIRA820_PROJECT_KEY` / `JIRA820_PROJECT_NAME` | `JIRA820` / `JIRA820 Sample Project` | 기본 샘플 프로젝트 식별 |
+| `JIRA820_CONFLUENCE_VERSION` | `9.2.4` | 연동 Confluence DC 버전(CQL 검색 응답 형태) |
 | `JIRA820_LOCALE` | `en` | `en` 또는 `ko` |
 | `JIRA820_SP_FIELD` / `JIRA820_EPIC_LINK_FIELD` / `JIRA820_SPRINT_FIELD` | `customfield_10004/10008/10007` | 커스텀필드 id |
 | `JIRA820_SUBTASK_TYPE` | `Sub-task` | `issuetype.subtask` 판정에 쓰는 서브태스크 타입명 |
@@ -96,7 +99,7 @@ import requests
 BASE = "http://127.0.0.1:8080"
 # 생성
 key = requests.post(f"{BASE}/rest/api/2/issue",
-    json={"fields": {"project": {"key": "DEMO"}, "issuetype": {"name": "Task"},
+    json={"fields": {"project": {"key": "JIRA820"}, "issuetype": {"name": "Task"},
                      "summary": "무언가 배포"}}).json()["key"]
 # 전이
 t = requests.get(f"{BASE}/rest/api/2/issue/{key}/transitions").json()["transitions"][0]["id"]

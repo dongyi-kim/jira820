@@ -330,9 +330,11 @@ class Seeder:
                 rng = _rng(self.c.seed, "conf", uid)
                 pages = []
                 for _ in range(rng.randint(0, 4)):
-                    pages.append({"title": rng.choice(self.txt.CONF_TITLES),
+                    _t = rng.choice(self.txt.CONF_TITLES)
+                    pages.append({"title": _t,
                                   "space": rng.choice(self.txt.CONF_SPACES),
                                   "action": rng.choice(self.txt.CONF_ACTIONS),
+                                  "body": "%s. %s" % (_t, rng.choice(self.txt.CONF_TITLES)),
                                   "date": self.today - timedelta(days=rng.randint(0, 13)),
                                   "time": self._tm(rng)})
                 pages.sort(key=lambda p: p["date"], reverse=True)

@@ -147,7 +147,7 @@ class Serializer:
             "votes": {"self": f"/rest/api/2/issue/{it['key']}/votes",
                       "votes": it.get("votes", 0), "hasVoted": False},
             "fixVersions": [self.version_obj(v) for v in it.get("fixVersions", [])],
-            "project": self.project_ref(),
+            "project": self.project_ref(it.get("project")),
             "attachment": [self.attachment_obj(self.store.attachments[aid], base_url)
                            for aid in it.get("attachments", []) if aid in self.store.attachments],
             self.c.sp_field: it.get("sp"),
@@ -169,9 +169,13 @@ class Serializer:
         ]
         return f
 
-    def project_ref(self) -> dict:
-        return {"self": f"/rest/api/2/project/{self.c.project_key}", "id": "10000",
-                "key": self.c.project_key, "name": self.c.project_name, "projectTypeKey": "software"}
+    def project_ref(self, key=None) -> dict:
+        """이슈별 프로젝트 참조 — 멀티프로젝트(주입) 지원. key 없으면 config 기본 프로젝트."""
+        k = key or self.c.project_key
+        name = self.c.project_name if k == self.c.project_key else k
+        pid = str(int(hashlib.md5(("proj:" + k).encode()).hexdigest()[:6], 16))
+        return {"self": f"/rest/api/2/project/{k}", "id": pid,
+                "key": k, "name": name, "projectTypeKey": "software"}
 
     def version_obj(self, v) -> dict:
         return {"self": f"/rest/api/2/version/{v['id']}", "id": str(v["id"]),
@@ -250,3 +254,45 @@ def project_fields(allf: dict, fields: str) -> dict:
     if not want or "*all" in want or "*navigable" in want:
         return allf
     return {k: v for k, v in allf.items() if k in want}
+
+
+# ── Confluence (linked DC) 검색 결과 직렬화 ──────────────────────────────
+def _conf_slug(title):
+    return (title or "").replace(" ", "+")
+
+
+def _conf_webui(page):
+    return "/spaces/%s/pages/%s/%s" % (
+        page.get("space", ""), page.get("id", ""), _conf_slug(page.get("title", "")))
+
+
+def _conf_excerpt(page):
+    body = (page.get("body") or page.get("title") or "").strip()
+    return body[:180]
+
+
+def conf_content_obj(page, base_url=""):
+    """Confluence /rest/api/content 형태의 content object (search 결과에도 중첩됨)."""
+    sp = str(page.get("space") or "")
+    pid = str(page.get("id", ""))
+    return {
+        "id": pid, "type": "page", "status": "current",
+        "title": page.get("title", ""),
+        "space": {"key": sp, "name": sp, "type": "global"},
+        "version": {"when": dt(page.get("date"), page.get("time")), "number": 1},
+        "_links": {"webui": _conf_webui(page),
+                   "self": (base_url + "/rest/api/content/" + pid) if base_url else "/rest/api/content/" + pid},
+    }
+
+
+def conf_search_result(page, base_url=""):
+    """Confluence /rest/api/search 결과 아이템 (excerpt 포함) — DC 9.x 형태."""
+    return {
+        "content": conf_content_obj(page, base_url),
+        "title": page.get("title", ""),
+        "excerpt": _conf_excerpt(page),
+        "url": _conf_webui(page),
+        "entityType": "content",
+        "iconCssClass": "aui-iconfont-page-default",
+        "lastModified": dt(page.get("date"), page.get("time")),
+    }

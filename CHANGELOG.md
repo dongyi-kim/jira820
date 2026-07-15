@@ -1,5 +1,20 @@
 # 변경 이력
 
+## 0.5.0
+
+- **통합 검색 기반**:
+  - JQL `text ~ "..."` (요약+설명+코멘트 전문검색), `description ~` / `comment ~` 추가.
+  - **Confluence 검색** — 연동 Confluence DC(기본 9.2.4) 형태의 CQL 검색.
+    `GET /rest/api/search`(excerpt 스니펫 포함)·`GET /rest/api/content/search` 가 CQL
+    `space in (...)` · `title ~` · `text ~`/`siteSearch ~` · `contributor=` · `lastmodified >= now("-14d")`
+    를 페이지 코퍼스에서 검색(`cql.py`). 결과 URL 은 9.x 형태 `/spaces/{space}/pages/{id}/{title}`.
+  - 페이지에 `body` 부여(text 검색용). `store.confluence_pages()` 코퍼스 헬퍼.
+- **멀티 프로젝트**: 이슈별 `project` 로 직렬화(`project_ref`) → 여러 프로젝트를 한 스토어에 담아
+  `project = X` / `project in (A, B)` 검색 가능. 소비자가 자체 프로젝트/스페이스를 **additive 주입**
+  (`store.issues.update(...)`)해 멀티 프로젝트/스페이스 시나리오를 테스트할 수 있다.
+- 기본 샘플 프로젝트명 `DEMO` → **`JIRA820`**. `confluence_version`(기본 9.2.4) 설정 추가.
+- JQL/CQL 공용 `_split_and` 의 `in (...)` 닫는 괄호 오제거 버그 수정.
+
 ## 0.4.0
 
 - **renderedFields / renderedBody (위키→HTML 서버 렌더)**: `GET issue/{key}?expand=renderedFields` 응답에

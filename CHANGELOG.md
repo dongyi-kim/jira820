@@ -1,5 +1,15 @@
 # 변경 이력
 
+## 0.6.0
+
+- **이슈 링크(issuelinks)** — 실 Jira DC 형태로 `fields.issuelinks` 를 제공합니다.
+  `{id, type:{id,name,inward,outward}, inwardIssue|outwardIssue:{key,fields:{summary,status,issuetype}}}`.
+  링크 타입: `Relates`(relates to) · `Blocks`(blocks / is blocked by) ·
+  `Duplicate`(duplicates / is duplicated by) · `Cloners`(clones / is cloned by).
+  샘플 world 가 몇 쌍을 **양방향**(한쪽 outward / 상대 inward)으로 연결해 둡니다.
+- `GET /rest/api/2/issueLinkType` — 링크 타입 목록 엔드포인트 추가.
+- 링크가 없는 이슈도 `issuelinks: []` 로 필드 자체는 존재합니다(실 Jira 동작과 동일).
+
 ## 0.5.0
 
 - **통합 검색 기반**:

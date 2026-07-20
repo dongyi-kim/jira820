@@ -167,7 +167,36 @@ class Serializer:
                 "issuetype": self.issuetype_obj(self.store.issues[sk]["type"])}}
             for sk in it.get("subtasks", []) if sk in self.store.issues
         ]
+        f["issuelinks"] = self.issuelinks(it)
         return f
+
+    # Issue links — Jira DC 형태: {id, type:{id,name,inward,outward}, inwardIssue|outwardIssue}
+    # store 의 링크 항목: {"type": "Relates", "dir": "outward"|"inward", "key": "<상대 키>"}
+    LINK_TYPES = {
+        "Relates":    ("relates to", "relates to"),
+        "Blocks":     ("is blocked by", "blocks"),
+        "Duplicate":  ("is duplicated by", "duplicates"),
+        "Cloners":    ("is cloned by", "clones"),
+    }
+
+    def issuelinks(self, it) -> list:
+        out = []
+        for i, ln in enumerate(it.get("links", [])):
+            other = ln.get("key")
+            if not other or other not in self.store.issues:
+                continue
+            o = self.store.issues[other]
+            name = ln.get("type", "Relates")
+            inward, outward = self.LINK_TYPES.get(name, self.LINK_TYPES["Relates"])
+            ref = {"id": iid(other), "key": other, "fields": {
+                "summary": o["summary"], "status": self.status_obj(o["statusName"]),
+                "issuetype": self.issuetype_obj(o["type"])}}
+            side = "outwardIssue" if ln.get("dir", "outward") == "outward" else "inwardIssue"
+            out.append({"id": str(9000 + i),
+                        "type": {"id": str(10000 + sorted(self.LINK_TYPES).index(name)),
+                                 "name": name, "inward": inward, "outward": outward},
+                        side: ref})
+        return out
 
     def project_ref(self, key=None) -> dict:
         """이슈별 프로젝트 참조 — 멀티프로젝트(주입) 지원. key 없으면 config 기본 프로젝트."""

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "jira820"
-version = "0.5.0"
+version = "0.6.0"
 description = "Jira Data Center 8.20.8 을 로컬에서 흉내 내는 상태형 읽기+쓰기 mock 서버 (REST v2 + Agile 보드/스프린트/칸반)."
 readme = "README.md"
 license = { text = "MIT" }

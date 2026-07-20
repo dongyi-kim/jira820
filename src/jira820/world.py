@@ -181,7 +181,7 @@ class Seeder:
             "created": created, "updated": updated, "resolved": resolved, "due": due,
             "tcreated": self._tm(rng), "tupdated": self._tm(rng), "tresolved": self._tm(rng),
             "comments": comments, "worklog": worklog, "subtasks": [],
-            "sprints": [], "fixVersions": [], "changelog": changelog,
+            "sprints": [], "fixVersions": [], "changelog": changelog, "links": [],
             "watches": rng.randint(0, 4), "votes": rng.randint(0, 3),
         }
         return key
@@ -202,9 +202,28 @@ class Seeder:
         self._build_history()
         self._build_versions()
         self._build_boards_sprints()
+        self._build_links()
         self.store.reindex()
         self._build_activity()
         self._build_confluence()
+
+    def _build_links(self):
+        """이슈 링크(relates to / blocks / duplicates) — 결정적으로 몇 쌍 연결.
+        양방향으로 넣는다: A 에 outward, 상대 B 에 inward — 실 Jira 처럼 양쪽에서 보인다."""
+        keys = [k for k, it in self.store.issues.items() if it["type"] != "Epic"]
+        keys.sort()
+        if len(keys) < 4:
+            return
+        kinds = ["Relates", "Blocks", "Duplicate"]
+        for i in range(0, len(keys) - 1, 7):            # 7개마다 한 쌍
+            a, b = keys[i], keys[(i + 3) % len(keys)]
+            if a == b:
+                continue
+            kind = kinds[(i // 7) % len(kinds)]
+            self.store.issues[a].setdefault("links", []).append(
+                {"type": kind, "dir": "outward", "key": b})
+            self.store.issues[b].setdefault("links", []).append(
+                {"type": kind, "dir": "inward", "key": a})
 
     def _build_epics(self):
         for module in self.c.modules:

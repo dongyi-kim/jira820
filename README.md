@@ -75,7 +75,8 @@ JIRA820_CONFIG=examples/config.yaml jira820
 **읽기** — `serverInfo`, `myself`, `user`, `field`, `status`, `issuetype`, `priority`, `resolution`,
 `project`(+`/{key}`, `/components`, `/versions`, `/statuses`), `search`(JQL + `fields` 투영 + 페이징),
 `issue/{key}`(`?expand=changelog`), `issue/{key}/comment`, `issue/{key}/worklog`, `issue/{key}/transitions`,
-`issue/createmeta`, `issue/{key}/editmeta`, `activity`(ATOM), `content/search`(Confluence CQL).
+`issue/createmeta`, `issue/{key}/editmeta`, `issueLinkType`, `activity`(ATOM), `content/search`(Confluence CQL).
+이슈는 `fields.issuelinks` 로 **이슈 링크**(relates to / blocks / duplicates / clones)를 제공합니다 — 상대 이슈는 `inwardIssue`/`outwardIssue` 로 방향까지 구분됩니다.
 
 **쓰기** — `POST issue`, `PUT issue/{key}`, `DELETE issue/{key}`, `POST issue/{key}/transitions`,
 `POST/PUT/DELETE issue/{key}/comment[/{id}]`, `POST issue/{key}/worklog`, `PUT issue/{key}/assignee`.

@@ -47,6 +47,17 @@ def myself(request: Request):
             "active": True, "deleted": False, "timeZone": "UTC", "locale": "en_US"}
 
 
+@router.get("/rest/api/2/issueLinkType")
+def issue_link_types():
+    """이슈 링크 타입 목록 (실 Jira DC 와 동일 형태)."""
+    from .serialize import Serializer
+    out = []
+    for i, (name, (inward, outward)) in enumerate(sorted(Serializer.LINK_TYPES.items())):
+        out.append({"id": str(10000 + i), "name": name, "inward": inward, "outward": outward,
+                    "self": f"/rest/api/2/issueLinkType/{10000 + i}"})
+    return {"issueLinkTypes": out}
+
+
 @router.get("/rest/api/2/user")
 def user(request: Request, username: str = "", key: str = ""):
     s = _store(request)

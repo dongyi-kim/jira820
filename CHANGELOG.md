@@ -1,5 +1,16 @@
 # 변경 이력
 
+## 0.7.0
+
+- **우선순위(priority) 를 일반화** — 이전에는 모든 이슈가 `Medium` 으로 고정이었습니다.
+  - 이슈가 자기 `priority` 를 가질 수 있습니다(`Store` 의 이슈 레코드 `priority` 필드).
+  - 우선순위 목록을 설정으로 갈아끼웁니다: `priorities: [[name, id], ...]`.
+    기본값은 Jira DC 기본 스킴(Highest/High/Medium/Low/Lowest).
+  - `default_priority` — 이슈에 값이 없을 때 붙일 기본값. 지정하지 않으면 목록의 가운데.
+    "값 없음이 아니라 항상 기본값이 붙는" 운용(예: `Unclassified`)을 표현할 수 있습니다.
+  - `GET /rest/api/2/priority` 가 설정된 목록을 반환합니다(고정 1건 → 목록).
+  - 목록에 없는 이름도 그대로 통과시킵니다(`id: "0"`) — mock 이 스킴을 판단하지 않습니다.
+
 ## 0.6.0
 
 - **이슈 링크(issuelinks)** — 실 Jira DC 형태로 `fields.issuelinks` 를 제공합니다.

@@ -43,6 +43,7 @@ class Serializer:
         # status name -> (category, id) ; issue type name -> id
         self.status_map = {name: (cat, sid) for name, cat, sid in c.statuses}
         self.type_map = {name: tid for name, tid in c.issue_types}
+        self.prio_map = {name: pid for name, pid in c.priorities}
         self.comp_ids = {m: str(100 + i) for i, m in enumerate(c.components)}
 
     # ── small objects ──
@@ -67,6 +68,20 @@ class Serializer:
             "iconUrl": f"/secure/viewavatar?avatarType=issuetype&avatarId=10300&type={slug}",
             "name": name, "subtask": name == self.c.subtask_type, "avatarId": 10300,
         }
+
+    def priority_obj(self, name=None) -> Optional[dict]:
+        """우선순위 객체. name 이 없으면 config.default_priority, 그것도 없으면 목록 가운데.
+
+        목록에 없는 이름도 그대로 돌려준다(id 는 "0") — 인스턴스가 임의 스킴을 쓸 수 있고,
+        mock 이 이름을 검열할 이유가 없다.
+        """
+        if not self.c.priorities:
+            return None
+        if not name:
+            name = self.c.default_priority or self.c.priorities[len(self.c.priorities) // 2][0]
+        pid = self.prio_map.get(name, "0")
+        return {"self": f"/rest/api/2/priority/{pid}", "id": pid, "name": name,
+                "iconUrl": f"/images/icons/priorities/{str(name).lower().replace(' ', '')}.svg"}
 
     def user_obj(self, uid: str) -> dict:
         u = self.store.users.get(uid, {"name": uid, "displayName": uid})
@@ -129,8 +144,7 @@ class Serializer:
             "assignee": self.user_obj(it["assignee"]) if it.get("assignee") else None,
             "reporter": self.user_obj(it["reporter"]) if it.get("reporter") else None,
             "creator": self.user_obj(it["reporter"]) if it.get("reporter") else None,
-            "priority": {"self": "/rest/api/2/priority/3", "id": "3", "name": "Medium",
-                         "iconUrl": "/images/icons/priorities/medium.svg"},
+            "priority": self.priority_obj(it.get("priority")),
             "components": [
                 {"self": f"/rest/api/2/component/{self.comp_ids.get(it.get('component'), '0')}",
                  "id": self.comp_ids.get(it.get("component"), "0"), "name": it.get("component")}

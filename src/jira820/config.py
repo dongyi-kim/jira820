@@ -58,6 +58,12 @@ DEFAULT_ISSUE_TYPES = [
 ]
 SUBTASK_TYPE = "Sub-task"
 
+# Jira DC 기본 우선순위 (name, id). 스킴 자체는 인스턴스마다 다르므로 YAML 로 갈아끼운다.
+# 예) P0-Blocker … P4-Trivial / Unclassified 같은 사내 체계.
+DEFAULT_PRIORITIES = [
+    ("Highest", "1"), ("High", "2"), ("Medium", "3"), ("Low", "4"), ("Lowest", "5"),
+]
+
 
 @dataclass
 class Config:
@@ -94,6 +100,9 @@ class Config:
     components_extra: list = field(default_factory=lambda: list(DEFAULT_COMPONENTS_EXTRA))
     statuses: list = field(default_factory=lambda: [list(s) for s in DEFAULT_STATUSES])
     issue_types: list = field(default_factory=lambda: [list(t) for t in DEFAULT_ISSUE_TYPES])
+    priorities: list = field(default_factory=lambda: [list(p) for p in DEFAULT_PRIORITIES])
+    # 이슈에 priority 가 없을 때 쓸 기본값. None 이면 목록의 가운데 값.
+    default_priority: Optional[str] = None
 
     # volume knobs
     epics_per_module: int = 3
@@ -156,6 +165,10 @@ def load_config() -> Config:
         c.statuses = [list(s) for s in ycfg["statuses"]]
     if ycfg.get("issue_types"):
         c.issue_types = [list(t) for t in ycfg["issue_types"]]
+    if ycfg.get("priorities"):
+        c.priorities = [list(p) for p in ycfg["priorities"]]
+    if ycfg.get("default_priority"):
+        c.default_priority = str(ycfg["default_priority"])
     for k in ("epics_per_module", "standalone_per_module", "history_per_module", "sprints_per_scrum_board"):
         if ycfg.get(k) is not None:
             setattr(c, k, int(ycfg[k]))

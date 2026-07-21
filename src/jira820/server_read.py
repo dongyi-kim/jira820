@@ -128,9 +128,9 @@ def issuetypes(request: Request):
 
 
 @router.get("/rest/api/2/priority")
-def priorities():
-    return [{"id": "3", "name": "Medium", "self": "/rest/api/2/priority/3",
-             "iconUrl": "/images/icons/priorities/medium.svg"}]
+def priorities(request: Request):
+    s = _store(request)
+    return [s.serializer.priority_obj(name) for name, _pid in s.config.priorities]
 
 
 @router.get("/rest/api/2/resolution")

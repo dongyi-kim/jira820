@@ -220,8 +220,12 @@ class Store:
         it = self.get_issue(key)
         self._comment_seq += 1
         cid = str(self._comment_seq)
+        # 새 댓글은 **실제 현재 시각** — 고정 "09:00" 이면 기존(시드) 댓글보다 이른 시각이 돼
+        # 정렬(orderBy=-created) 시 목록 중간에 끼어든다(= 순서가 뒤섞여 보임).
+        from datetime import datetime as _dt
+        _t = _dt.now().strftime("%H:%M")
         c = {"id": cid, "author": author, "body": body, "kind": "comment", "text": body,
-             "created": self.now, "tcreated": "09:00", "updated": self.now, "tupdated": "09:00"}
+             "created": self.now, "tcreated": _t, "updated": self.now, "tupdated": _t}
         it["comments"].append(c)
         it["updated"] = self.now
         self._touch_persist()

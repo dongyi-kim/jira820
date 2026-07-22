@@ -52,7 +52,7 @@ def test_table_header_and_cells():
 
 def test_code_block_language_and_escaping():
     out = render_wiki("{code:python}\nif a < b & c > d:\n    pass\n{code}")
-    assert '<pre class="code"><code class="lang-python">' in out
+    assert '<pre class="jecodeblock"><code class="language-python">' in out
     assert "&lt;" in out and "&amp;" in out and "&gt;" in out    # 코드 내용 escape
     assert "<script" not in out.lower()
 

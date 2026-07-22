@@ -52,8 +52,9 @@ def render_wiki(src, mr=None) -> str:
                 body.append(lines[i])
                 i += 1
             i += 1  # skip closing fence
-            cls = " class=\"lang-" + escape(lang, quote=True) + "\"" if lang else ""
-            html.append("<pre class=\"code\"><code" + cls + ">"
+            # 실 Jira DC(신 에디터) 와 동일한 태그: <pre class="jecodeblock"><code class="language-X">
+            cls = " class=\"language-" + escape(lang, quote=True) + "\"" if lang else ""
+            html.append("<pre class=\"jecodeblock\"><code" + cls + ">"
                         + escape("\n".join(body)) + "</code></pre>")
             continue
 

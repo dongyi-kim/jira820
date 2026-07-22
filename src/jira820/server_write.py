@@ -80,6 +80,54 @@ async def add_worklog(key: str, request: Request):
     return JSONResponse(obj, status_code=201)
 
 
+@router.post("/rest/api/2/issueLink")
+async def create_issue_link(request: Request):
+    """이슈 링크 생성 — 실 Jira DC 형태의 바디:
+    {"type": {"name": "Blocks"}, "inwardIssue": {"key": "X-1"}, "outwardIssue": {"key": "X-2"}}
+    Jira 의미: outwardIssue 가 type.outward 관계의 대상이다(예: X-1 blocks X-2)."""
+    s = _store(request)
+    body = await _json(request)
+    name = ((body.get("type") or {}).get("name") or "Relates")
+    inw = ((body.get("inwardIssue") or {}).get("key") or "")
+    outw = ((body.get("outwardIssue") or {}).get("key") or "")
+    if not inw or not outw:
+        return JSONResponse({"errorMessages": ["inwardIssue/outwardIssue required"],
+                             "errors": {}}, status_code=400)
+    try:
+        s.add_issue_link(name, inw, outw)
+    except ValueError as e:
+        return JSONResponse({"errorMessages": [str(e)], "errors": {}}, status_code=400)
+    return Response(status_code=201)
+
+
+@router.delete("/rest/api/2/issueLink/{link_id}")
+async def delete_issue_link(link_id: str, request: Request):
+    _store(request).delete_issue_link(link_id)
+    return Response(status_code=204)
+
+
+@router.post("/rest/api/2/issue/{key}/remotelink")
+async def create_remote_link(key: str, request: Request):
+    """원격 링크(Confluence 문서·웹 링크) 생성/갱신 — 실 Jira 는 globalId 로 upsert 한다.
+    바디: {"globalId": …, "relationship": …, "object": {"url": …, "title": …, "icon": {...}}}"""
+    s = _store(request)
+    body = await _json(request)
+    obj = body.get("object") or {}
+    url = (obj.get("url") or "").strip()
+    if not url:
+        return JSONResponse({"errorMessages": ["object.url required"], "errors": {}}, status_code=400)
+    res = s.add_remote_link(key, url, obj.get("title") or "", body.get("relationship") or "",
+                            ((obj.get("icon") or {}).get("url16x16") or ""),
+                            body.get("globalId") or "")
+    return JSONResponse(res, status_code=201)
+
+
+@router.delete("/rest/api/2/issue/{key}/remotelink/{link_id}")
+async def delete_remote_link(key: str, link_id: str, request: Request):
+    _store(request).delete_remote_link(key, link_id)
+    return Response(status_code=204)
+
+
 @router.put("/rest/api/2/issue/{key}/assignee")
 async def set_assignee(key: str, request: Request):
     s = _store(request)

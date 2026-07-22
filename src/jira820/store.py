@@ -271,6 +271,75 @@ class Store:
         self.reindex()
         self._touch_persist()
 
+    # ── issue links (relates to / blocks / duplicates …) ──
+    # Real Jira stores one link and shows it from both sides. We keep the same: the link lives on
+    # the *inward* issue's list with dir=outward, and the counterpart gets the mirrored entry.
+    def add_issue_link(self, link_type: str, inward_key: str, outward_key: str) -> dict:
+        """POST /rest/api/2/issueLink — inward/outward are issue keys, as in real Jira's body."""
+        self._require_writable()
+        a = self.get_issue(inward_key)
+        b = self.get_issue(outward_key)
+        if inward_key == outward_key:
+            raise ValueError("cannot link an issue to itself")
+        lid = str(self._next_link_id())
+        # a --(outward)--> b  and the mirror on b
+        a.setdefault("links", []).append(
+            {"id": lid, "type": link_type, "key": outward_key, "dir": "outward"})
+        b.setdefault("links", []).append(
+            {"id": lid, "type": link_type, "key": inward_key, "dir": "inward"})
+        a["updated"] = b["updated"] = self.now
+        self._touch_persist()
+        return {"id": lid, "type": link_type, "inwardIssue": inward_key, "outwardIssue": outward_key}
+
+    def _next_link_id(self) -> int:
+        used = {int(ln["id"]) for it in self.issues.values()
+                for ln in (it.get("links") or []) if str(ln.get("id", "")).isdigit()}
+        return max(used, default=9000) + 1
+
+    def delete_issue_link(self, link_id: str):
+        self._require_writable()
+        for it in self.issues.values():
+            keep = [ln for ln in (it.get("links") or []) if str(ln.get("id")) != str(link_id)]
+            if len(keep) != len(it.get("links") or []):
+                it["links"] = keep
+                it["updated"] = self.now
+        self._touch_persist()
+
+    # ── remote links (Confluence pages / web links attached to an issue) ──
+    def add_remote_link(self, key: str, url: str, title: str = "", relationship: str = "",
+                        icon: str = "", global_id: str = "") -> dict:
+        """POST /rest/api/2/issue/{key}/remotelink. Same globalId (or url) replaces in place —
+        real Jira upserts on globalId, which is how re-linking the same page stays one row."""
+        self._require_writable()
+        it = self.get_issue(key)
+        links = it.setdefault("remotelinks", [])
+        gid = global_id or url
+        rec = {"url": url, "title": title or url, "globalId": gid}
+        if relationship:
+            rec["relationship"] = relationship
+        if icon:
+            rec["icon"] = icon
+        for i, ln in enumerate(links):
+            if (ln.get("globalId") or ln.get("url")) == gid:
+                links[i] = rec
+                break
+        else:
+            links.append(rec)
+        it["updated"] = self.now
+        self._touch_persist()
+        return {"id": 10000 + links.index(rec), "self":
+                f"/rest/api/2/issue/{key}/remotelink/{10000 + links.index(rec)}"}
+
+    def delete_remote_link(self, key: str, link_id):
+        self._require_writable()
+        it = self.get_issue(key)
+        links = it.get("remotelinks") or []
+        i = int(link_id) - 10000
+        if 0 <= i < len(links):
+            links.pop(i)
+            it["updated"] = self.now
+            self._touch_persist()
+
     # ── attachments (files/images on issues; referenced from description/comment markup) ──
     def add_attachment(self, key: str, filename: str, mimetype: str, data: bytes, author: str = "admin") -> dict:
         self._require_writable()

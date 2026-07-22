@@ -211,7 +211,7 @@ class Serializer:
                 "summary": o["summary"], "status": self.status_obj(o["statusName"]),
                 "issuetype": self.issuetype_obj(o["type"])}}
             side = "outwardIssue" if ln.get("dir", "outward") == "outward" else "inwardIssue"
-            out.append({"id": str(9000 + i),
+            out.append({"id": str(ln.get("id") or (9000 + i)),   # 생성된 링크는 자기 id 를 갖는다
                         "type": {"id": str(10000 + sorted(self.LINK_TYPES).index(name)),
                                  "name": name, "inward": inward, "outward": outward},
                         side: ref})

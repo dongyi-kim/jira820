@@ -55,3 +55,60 @@ def test_issue_without_links_has_empty_list():
     unlinked = [i for i in _issues() if not i["fields"].get("issuelinks")]
     assert unlinked
     assert unlinked[0]["fields"]["issuelinks"] == []
+
+
+# ── 쓰기: 이슈 링크 / 원격 링크 생성·삭제 (실 Jira DC 형태의 바디) ──
+
+
+def _two_keys(cl):
+    ks = [i["key"] for i in cl.get("/rest/api/2/search",
+                                   params={"jql": "project=JIRA820", "maxResults": 5}).json()["issues"]]
+    return ks[0], ks[1]
+
+
+def test_create_and_delete_issue_link():
+    cl = TestClient(make_app())
+    a, b = _two_keys(cl)
+    r = cl.post("/rest/api/2/issueLink", json={
+        "type": {"name": "Blocks"}, "inwardIssue": {"key": a}, "outwardIssue": {"key": b}})
+    assert r.status_code == 201
+
+    def links(k):
+        return cl.get(f"/rest/api/2/issue/{k}", params={"fields": "issuelinks"}) \
+                 .json()["fields"]["issuelinks"]
+
+    mine = [ln for ln in links(a) if (ln.get("outwardIssue") or {}).get("key") == b]
+    assert mine and mine[0]["type"]["name"] == "Blocks"      # a --blocks--> b
+    theirs = [ln for ln in links(b) if (ln.get("inwardIssue") or {}).get("key") == a]
+    assert theirs, "상대 이슈에서 inward 로 보여야 한다"
+
+    cl.delete("/rest/api/2/issueLink/" + mine[0]["id"])
+    assert not [ln for ln in links(a) if (ln.get("outwardIssue") or {}).get("key") == b]
+    assert not [ln for ln in links(b) if (ln.get("inwardIssue") or {}).get("key") == a]
+
+
+def test_issue_link_rejects_self_and_missing_target():
+    cl = TestClient(make_app())
+    a, _ = _two_keys(cl)
+    assert cl.post("/rest/api/2/issueLink", json={
+        "type": {"name": "Relates"}, "inwardIssue": {"key": a},
+        "outwardIssue": {"key": a}}).status_code == 400
+    assert cl.post("/rest/api/2/issueLink",
+                   json={"type": {"name": "Relates"}, "inwardIssue": {"key": a}}).status_code == 400
+
+
+def test_create_remote_link_upserts_on_global_id():
+    cl = TestClient(make_app())
+    a, _ = _two_keys(cl)
+    url = "https://conf.test/display/DP/설계"
+    body = {"globalId": url, "object": {"url": url, "title": "설계 문서"}}
+    assert cl.post(f"/rest/api/2/issue/{a}/remotelink", json=body).status_code == 201
+    cl.post(f"/rest/api/2/issue/{a}/remotelink",          # 같은 문서 재등록 → 한 줄만
+            json={"globalId": url, "object": {"url": url, "title": "설계 문서 v2"}})
+    got = [r for r in cl.get(f"/rest/api/2/issue/{a}/remotelink").json()
+           if r["object"]["url"] == url]
+    assert len(got) == 1 and got[0]["object"]["title"] == "설계 문서 v2"
+
+    cl.delete(f"/rest/api/2/issue/{a}/remotelink/{got[0]['id']}")
+    assert not [r for r in cl.get(f"/rest/api/2/issue/{a}/remotelink").json()
+                if r["object"]["url"] == url]

@@ -249,6 +249,31 @@ def comments(key: str, request: Request, maxResults: int = 50, startAt: int = 0,
             "comments": cs[startAt:startAt + maxResults]}
 
 
+@router.get("/rest/api/2/issue/{key}/remotelink")
+def remotelink(key: str, request: Request):
+    """이슈의 원격 링크(Confluence 문서 · Web link) — 실 Jira DC 형태.
+
+    [{id, globalId?, application?, relationship?, object:{url, title, icon?}}]
+    """
+    s = _store(request)
+    it = s.get_issue(key)
+    out = []
+    for i, ln in enumerate(it.get("remotelinks") or []):
+        obj = {"url": ln["url"], "title": ln.get("title") or ln["url"]}
+        if ln.get("icon"):
+            obj["icon"] = {"url16x16": ln["icon"]}
+        rec = {"id": 10000 + i, "self": f"{_base(request)}/rest/api/2/issue/{key}/remotelink/{10000 + i}",
+               "object": obj}
+        if ln.get("globalId"):
+            rec["globalId"] = ln["globalId"]
+        if ln.get("relationship"):
+            rec["relationship"] = ln["relationship"]
+        if ln.get("application"):
+            rec["application"] = ln["application"]
+        out.append(rec)
+    return out
+
+
 @router.get("/rest/api/2/issue/{key}/worklog")
 def worklog(key: str, request: Request):
     s = _store(request)

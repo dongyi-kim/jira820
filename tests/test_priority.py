@@ -51,3 +51,28 @@ def test_unknown_priority_name_passes_through():
     _cl, c = _client()
     obj = build_store(c).serializer.priority_obj("사내전용-초긴급")
     assert obj["name"] == "사내전용-초긴급" and obj["id"] == "0"
+
+
+# ── remote link (Confluence / Web) ──────────────────────────────────
+
+def test_remotelink_endpoint_shape():
+    """이슈 remote link 가 실 Jira DC 형태로 나온다."""
+    cl = TestClient(make_app())
+    keys = cl.get("/rest/api/2/search",
+                  params={"jql": "project=JIRA820", "maxResults": 300}).json()["issues"]
+    hit = None
+    for it in keys:
+        r = cl.get(f"/rest/api/2/issue/{it['key']}/remotelink").json()
+        if r:
+            hit = r
+            break
+    assert hit, "remote link 가 있는 이슈가 없음"
+    o = hit[0]
+    assert "id" in o and "object" in o
+    assert o["object"].get("url") and o["object"].get("title")
+
+
+def test_remotelink_empty_for_issue_without_links():
+    cl = TestClient(make_app())
+    r = cl.get("/rest/api/2/issue/JIRA820-1/remotelink")
+    assert r.status_code == 200 and isinstance(r.json(), list)

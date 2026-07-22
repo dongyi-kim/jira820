@@ -142,7 +142,7 @@ class Store:
             "due": _parse_date(f.get("duedate")),
             "tcreated": "09:00", "tupdated": "09:00", "tresolved": None,
             "comments": [], "worklog": [], "subtasks": [],
-            "sprints": [], "fixVersions": [], "changelog": [], "links": [],
+            "sprints": [], "fixVersions": [], "changelog": [], "links": [], "remotelinks": [],
             "watches": 0, "votes": 0,
         }
         self.issues[key] = it

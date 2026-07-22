@@ -203,9 +203,38 @@ class Seeder:
         self._build_versions()
         self._build_boards_sprints()
         self._build_links()
+        self._build_remotelinks()
         self.store.reindex()
         self._build_activity()
         self._build_confluence()
+
+    def _build_remotelinks(self):
+        """일부 이슈에 원격 링크 부여 — Confluence 문서 + 외부 Web link.
+        본문 '언급'과 별개 경로라, 소비자(앱)가 두 소스를 합쳐 중복 제거하는지 검증용."""
+        conf = "https://confluence.corp.example"
+        keys = [k for k in self.store.issues
+                if k.startswith(self.store.config.project_key + "-")]
+        keys.sort()
+        specs = [
+            # (Confluence 문서, Web link) — 인덱스가 서로 다른 이슈에 붙는다
+            {"url": f"{conf}/spaces/DL/pages/42013/설계+노트",
+             "title": "설계 노트", "relationship": "documentation",
+             "application": {"type": "com.atlassian.confluence", "name": "Confluence"}},
+            {"url": "https://wiki.corp.example/runbook/deploy",
+             "title": "배포 런북(Web)", "relationship": "mentioned in"},
+            {"url": f"{conf}/display/DL/운영+가이드", "title": "운영 가이드",
+             "application": {"type": "com.atlassian.confluence", "name": "Confluence"}},
+        ]
+        for i, k in enumerate(keys[:24]):
+            picks = []
+            if i % 3 == 0:
+                picks.append(specs[0])
+            if i % 4 == 0:
+                picks.append(specs[1])
+            if i % 5 == 0:
+                picks.append(specs[2])
+            if picks:
+                self.store.issues[k]["remotelinks"] = [dict(p) for p in picks]
 
     def _build_links(self):
         """이슈 링크(relates to / blocks / duplicates) — 결정적으로 몇 쌍 연결.

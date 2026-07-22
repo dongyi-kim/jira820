@@ -2,6 +2,11 @@
 
 ## 0.7.0
 
+- **이슈 remote link(Confluence/Web) 지원** — `GET /rest/api/2/issue/{key}/remotelink`.
+  실 Jira DC 형태 `[{id, object:{url, title, icon?}, application?, relationship?}]`.
+  이슈 레코드의 `remotelinks: [{url, title, icon?, application?, relationship?}]` 를 방출한다.
+  샘플 world 가 일부 이슈에 Confluence 문서 + 외부 Web link 를 붙여 둔다.
+  (Jira 링크는 티켓뿐 아니라 Confluence·Web 도 가리킨다 — 소비자가 '관련 문서'로 합칠 수 있게.)
 - **우선순위(priority) 를 일반화** — 이전에는 모든 이슈가 `Medium` 으로 고정이었습니다.
   - 이슈가 자기 `priority` 를 가질 수 있습니다(`Store` 의 이슈 레코드 `priority` 필드).
   - 우선순위 목록을 설정으로 갈아끼웁니다: `priorities: [[name, id], ...]`.

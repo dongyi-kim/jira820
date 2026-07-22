@@ -243,6 +243,8 @@ def _inline(text, mr=None) -> str:
     s = _LINK_RE.sub(_link, s)
 
     s = _basic(s)
+    # Jira wiki 강제 개행 '\\' -> <br /> (표 셀처럼 한 줄이어야 하는 자리에서 줄을 나눌 때 쓴다)
+    s = s.replace("\\\\", "<br />")
 
     def _pop(m):
         return "<code>" + code_spans[int(m.group(1))] + "</code>"

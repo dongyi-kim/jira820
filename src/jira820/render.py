@@ -17,7 +17,8 @@ Output is well-formed, escaped HTML, faithful to Jira DC 8.20.8:
   - links    -> plain <a href> (document/Confluence badging is a consumer-side concern)
 Callouts/panels use class names (`panel`, `callout callout-<type>`, `code`) for CSS.
 
-  render_wiki(src, mr) -- mr: optional callable username -> displayName for mentions.
+  render_wiki(src, mr, ar) -- mr: username -> displayName (mentions)
+                              ar: attachment filename -> URL (for !image! refs)
 """
 
 from __future__ import annotations
@@ -28,9 +29,12 @@ from html import escape
 _CALLOUTS = {"note", "info", "warning", "tip", "success", "error"}
 
 
-def render_wiki(src, mr=None) -> str:
+def render_wiki(src, mr=None, ar=None) -> str:
     """Render Jira wiki markup string -> HTML. None/empty -> ''.
-    mr: optional mention resolver username->displayName (for [~user] badges)."""
+    mr: optional mention resolver username->displayName (for [~user] badges).
+    ar: optional attachment resolver filename->URL. Real Jira turns !file.png! into
+        /secure/attachment/{id}/{filename}; without it a bare filename would be
+        resolved against the page URL and render as a broken image."""
     if not src:
         return ""
     lines = str(src).replace("\r\n", "\n").replace("\r", "\n").split("\n")
@@ -71,8 +75,8 @@ def render_wiki(src, mr=None) -> str:
                 body.append(lines[i])
                 i += 1
             i += 1
-            inner = render_wiki("\n".join(body), mr)
-            th = "<div class=\"panel-title\">" + _inline(title, mr) + "</div>" if title else ""
+            inner = render_wiki("\n".join(body), mr, ar)
+            th = "<div class=\"panel-title\">" + _inline(title, mr, ar) + "</div>" if title else ""
             html.append("<div class=\"panel\">" + th + "<div class=\"panel-body\">" + inner + "</div></div>")
             continue
 
@@ -85,7 +89,7 @@ def render_wiki(src, mr=None) -> str:
                 body.append(lines[i])
                 i += 1
             i += 1
-            inner = render_wiki("\n".join(body), mr)
+            inner = render_wiki("\n".join(body), mr, ar)
             html.append("<div class=\"callout callout-" + kind + "\">" + inner + "</div>")
             continue
 
@@ -96,12 +100,12 @@ def render_wiki(src, mr=None) -> str:
                 body.append(lines[i])
                 i += 1
             i += 1
-            html.append("<blockquote>" + render_wiki("\n".join(body), mr) + "</blockquote>")
+            html.append("<blockquote>" + render_wiki("\n".join(body), mr, ar) + "</blockquote>")
             continue
 
         # ── single-line blockquote: "bq. text" ──
         if stripped.startswith("bq. "):
-            html.append("<blockquote>" + _inline(stripped[4:], mr) + "</blockquote>")
+            html.append("<blockquote>" + _inline(stripped[4:], mr, ar) + "</blockquote>")
             i += 1
             continue
 
@@ -109,7 +113,7 @@ def render_wiki(src, mr=None) -> str:
         m = re.match(r"^h([1-6])\.\s+(.*)$", stripped)
         if m:
             lvl = m.group(1)
-            html.append("<h" + lvl + ">" + _inline(m.group(2), mr) + "</h" + lvl + ">")
+            html.append("<h" + lvl + ">" + _inline(m.group(2), mr, ar) + "</h" + lvl + ">")
             i += 1
             continue
 
@@ -125,7 +129,7 @@ def render_wiki(src, mr=None) -> str:
             while i < n and lines[i].strip().startswith("|"):
                 rows.append(lines[i].strip())
                 i += 1
-            html.append(_table(rows, mr))
+            html.append(_table(rows, mr, ar))
             continue
 
         # ── list: lines starting with * or # (nestable by run length) ──
@@ -134,7 +138,7 @@ def render_wiki(src, mr=None) -> str:
             while i < n and re.match(r"^[*#]+\s+", lines[i].strip()):
                 block.append(lines[i].strip())
                 i += 1
-            html.append(_list(block, mr))
+            html.append(_list(block, mr, ar))
             continue
 
         # ── blank line ──
@@ -154,28 +158,28 @@ def render_wiki(src, mr=None) -> str:
             para.append(lines[i].strip())
             i += 1
         if para:
-            html.append("<p>" + "<br />".join(_inline(p, mr) for p in para) + "</p>")
+            html.append("<p>" + "<br />".join(_inline(p, mr, ar) for p in para) + "</p>")
     return "".join(html)
 
 
-def _table(rows, mr=None) -> str:
+def _table(rows, mr=None, ar=None) -> str:
     out = ["<table>"]
     for r in rows:
         body = r.strip()
         header = body.startswith("||")
         if header:
-            cells = [c for c in body.split("||") if c != ""]
+            cells = [c for c in re.split(r"(?<!\\)\|\|", body) if c != ""]
         else:
             inner = body[1:-1] if body.endswith("|") else body[1:]   # drop outer pipes
-            cells = inner.split("|")
+            cells = _CELL_SPLIT_RE.split(inner)                      # '\\|' 는 리터럴 파이프
         tag = "th" if header else "td"
-        out.append("<tr>" + "".join("<" + tag + ">" + _inline(c.strip(), mr) + "</" + tag + ">"
+        out.append("<tr>" + "".join("<" + tag + ">" + _inline(c.strip(), mr, ar) + "</" + tag + ">"
                                     for c in cells) + "</tr>")
     out.append("</table>")
     return "".join(out)
 
 
-def _list(items, mr=None) -> str:
+def _list(items, mr=None, ar=None) -> str:
     """Nested list from wiki markers (* bullet, # numbered), depth = marker run length.
     A change of marker type (*/#) at the same depth starts a new sibling list."""
     def one(idx, depth):
@@ -193,7 +197,7 @@ def _list(items, mr=None) -> str:
                 if lis:
                     lis[-1] = lis[-1][:-5] + inner + "</li>"
                 continue
-            lis.append("<li>" + _inline(text, mr) + "</li>")
+            lis.append("<li>" + _inline(text, mr, ar) + "</li>")
             i += 1
         return "<" + typ + ">" + "".join(lis) + "</" + typ + ">", i
 
@@ -204,11 +208,14 @@ def _list(items, mr=None) -> str:
     return "".join(out)
 
 
-_IMG_RE = re.compile(r"!([^!\n|]+)(?:\|[^!\n]*)?!")
+# 셀 구분자 '|' — 앞에 백슬래시가 붙은 '\\|' 는 리터럴 파이프(코드 안의 파이프 등).
+_CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
+_IMG_RE = re.compile(r"!([^!\n|]+)(?:\|([^!\n]*))?!")
+_ABS_RE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//|/)", re.I)
 _LINK_RE = re.compile(r"\[(?:([^\]|]+)\|)?([^\]]+)\]")
 
 
-def _inline(text, mr=None) -> str:
+def _inline(text, mr=None, ar=None) -> str:
     """Escape then apply inline wiki formatting. Order matters (code first)."""
     s = escape(text or "", quote=False)
 
@@ -216,13 +223,27 @@ def _inline(text, mr=None) -> str:
     code_spans = []
 
     def _stash(m):
-        code_spans.append(m.group(1))
+        code_spans.append(m.group(1).replace("\\|", "|"))
         return "\x00%d\x00" % (len(code_spans) - 1)
 
     s = re.sub(r"\{\{(.+?)\}\}", _stash, s)
+    s = s.replace("\\|", "|")                    # 이스케이프된 셀 구분자 복원
 
     # images  !url!  (before links so ! isn't consumed)
-    s = _IMG_RE.sub(lambda m: "<img src=\"" + m.group(1).strip() + "\" alt=\"\" />", s)
+    def _img(m):
+        src = m.group(1).strip()
+        params = m.group(2) or ""
+        # 첨부 파일명(!shot.png!)은 실 Jira 처럼 첨부 URL 로 해석. 이미 URL 형태면 그대로 둔다.
+        url = src if (_ABS_RE.match(src) or not ar) else (ar(src) or src)
+        attrs = ""
+        for k in ("width", "height"):                    # !img|width=300! 크기 유지
+            pm = re.search(k + r"\s*=\s*(\d+)", params)
+            if pm:
+                attrs += ' ' + k + '="' + pm.group(1) + '"'
+        return ('<span class="image-wrap"><img src="' + escape(url, quote=True)
+                + '" alt=""' + attrs + ' /></span>')
+
+    s = _IMG_RE.sub(_img, s)
 
     # mentions [~user] -> user profile link (실 Jira DC 8.20.8 형태: a.user-hover + ViewProfile)
     def _mention(m):

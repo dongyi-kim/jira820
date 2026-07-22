@@ -252,12 +252,25 @@ class Serializer:
             res["changelog"] = self.changelog(it)
         if expand and "renderedFields" in expand:
             # 실 Jira DC 처럼 wiki 소스를 서버 렌더한 HTML 제공 (table/image/code/quote/panel/맨션 등)
-            res["renderedFields"] = {"description": render_wiki(it.get("description"), self._mention_name)}
+            res["renderedFields"] = {"description": render_wiki(
+                it.get("description"), self._mention_name, self._attach_url(it["key"]))}
         return res
 
     def _mention_name(self, uid):
         u = self.store.users.get(uid)
         return u["displayName"] if u else uid
+
+    def _attach_url(self, key: str):
+        """wiki `!file.png!` 의 파일명 -> 첨부 URL 해석기(이슈 단위). 실 Jira 와 같은 형태.
+        해당 이슈에 그 이름의 첨부가 없으면 None -> 렌더러가 원문 그대로 둔다."""
+        def resolve(filename):
+            it = self.store.issues.get(key) or {}
+            for aid in it.get("attachments", []):
+                a = self.store.attachments.get(aid)
+                if a and a.get("filename") == filename:
+                    return f"/secure/attachment/{a['id']}/{a['filename']}"
+            return None
+        return resolve
 
     def comment_obj(self, key: str, idx: int, c) -> dict:
         au = self.user_obj(c["author"])
@@ -267,7 +280,8 @@ class Serializer:
         body = c["body"] if "body" in c else f"({c['kind']}) {c['text']}"
         return {"self": f"/rest/api/2/issue/{key}/comment/{cid}", "id": str(cid),
                 "author": au, "updateAuthor": au, "body": body,
-                "renderedBody": render_wiki(body, self._mention_name),   # 렌더된 HTML(맨션 이름 해석)
+                # 렌더된 HTML — 맨션 이름 해석 + !첨부파일명! 을 첨부 URL 로 해석(실 Jira 동일)
+                "renderedBody": render_wiki(body, self._mention_name, self._attach_url(key)),
                 "created": when, "updated": upd}
 
     def worklog_obj(self, key: str, idx: int, w) -> dict:

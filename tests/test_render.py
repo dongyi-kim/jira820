@@ -28,7 +28,17 @@ def test_link_and_mention_and_image():
     # 실 Jira DC 8.20.8 맨션 형태: a.user-hover + ViewProfile 링크
     assert 'class="user-hover"' in out and 'rel="kim.dev"' in out
     assert 'href="/secure/ViewProfile.jspa?name=kim.dev"' in out and ">kim.dev</a>" in out
-    assert '<img src="/img.svg" alt="" />' in out
+    # 실 Jira DC 는 본문 이미지를 span.image-wrap 으로 감싼다
+    assert '<span class="image-wrap"><img src="/img.svg" alt="" /></span>' in out
+
+
+def test_image_resolves_attachment_filename_and_size():
+    """!파일명! 은 첨부 URL 로 해석(실 Jira 동일). |width= 는 크기로 유지, URL 형태는 그대로."""
+    ar = {"shot.png": "/secure/attachment/30001/shot.png"}.get
+    out = render_wiki("!shot.png|width=300! !nope.png! !https://x.test/a.png!", ar=ar)
+    assert 'src="/secure/attachment/30001/shot.png" alt="" width="300"' in out
+    assert 'src="nope.png"' in out                     # 첨부에 없으면 원문 유지
+    assert 'src="https://x.test/a.png"' in out         # URL 은 해석하지 않는다
 
 
 def test_mention_resolver_shows_display_name():

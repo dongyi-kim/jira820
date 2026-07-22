@@ -71,6 +71,25 @@ def user(request: Request, username: str = "", key: str = ""):
             "avatarUrls": _avatars(uid), "displayName": uid, "active": True, "deleted": False}
 
 
+@router.get("/rest/api/2/user/search")
+def user_search(request: Request, username: str = "", query: str = "", maxResults: int = 20):
+    """유저 검색 (실 Jira DC 8.20 형태). username(구) 또는 query(신) 로 name/displayName 부분일치.
+    멘션 자동완성용. 빈 검색어면 앞에서부터 maxResults 개."""
+    s = _store(request)
+    q = (username or query or "").strip().lower()
+    out = []
+    for uid, u in s.users.items():
+        name = (u.get("name") or uid)
+        disp = (u.get("displayName") or uid)
+        if not q or q in name.lower() or q in disp.lower():
+            obj = dict(s.serializer.user_obj(uid))
+            obj["self"] = f"{_base(request)}/rest/api/2/user?username={uid}"
+            out.append(obj)
+        if len(out) >= max(1, maxResults):
+            break
+    return out
+
+
 @router.get("/rest/api/2/field")
 def fields(request: Request):
     s = _store(request)

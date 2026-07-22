@@ -41,6 +41,13 @@ def server_info(request: Request):
 
 @router.get("/rest/api/2/myself")
 def myself(request: Request):
+    """세션 사용자 — 실 Jira 는 SSO 로그인 사용자. config.current_user 로 지정한다
+    (world 주입 시 그 세계의 사람으로 바꿔야 '내 할 일' 화면이 실데이터로 돈다)."""
+    s = _store(request)
+    uid = getattr(s.config, "current_user", "admin") or "admin"
+    u = s.users.get(uid)
+    if u:
+        return dict(s.serializer.user_obj(uid), deleted=False, locale="en_US")
     return {"self": f"{_base(request)}/rest/api/2/user?username=admin",
             "key": "admin", "name": "admin", "emailAddress": "admin@example.com",
             "avatarUrls": _avatars("admin"), "displayName": "Administrator",

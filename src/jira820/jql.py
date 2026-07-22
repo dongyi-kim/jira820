@@ -133,6 +133,19 @@ def _date_pred(getter, op, val, today):
 
 
 def _pred(store, clause):
+    """절 하나 -> 술어. 부정 연산자(!= / NOT IN)는 여기서 한 번에 뒤집는다.
+    (필드별 술어가 각자 op 를 챙기게 하면 하나만 빠뜨려도 조용히 정반대 결과가 나온다 —
+     실제로 statusCategory != Done 이 '완료만' 돌려주는 버그가 그렇게 생겼다.)"""
+    field, op, _val = _parse_clause(clause)
+    p = _pred_pos(store, clause)
+    if p is None or field is None:
+        return p
+    if (op or "").lower() in ("!=", "not in"):
+        return lambda it: not p(it)
+    return p
+
+
+def _pred_pos(store, clause):
     field, op, val = _parse_clause(clause)
     if field is None:
         return None

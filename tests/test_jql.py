@@ -51,3 +51,20 @@ def test_status_name_filter():
     name = s.config.statuses[0][0]
     r = jql.filter_keys(s, f'status = "{name}"')
     assert all(s.issues[k]["statusName"] == name for k in r)
+
+
+def test_negation_operators_invert_the_match():
+    """!= / NOT IN 은 뒤집혀야 한다. (전엔 op 를 무시해 '완료만' 같은 정반대 결과가 나왔다.)"""
+    from jira820 import make_app
+    from fastapi.testclient import TestClient
+    cl = TestClient(make_app())
+
+    def cats(jql):
+        r = cl.get("/rest/api/2/search",
+                   params={"jql": jql, "fields": "status", "maxResults": 500}).json()
+        return {i["fields"]["status"]["statusCategory"]["key"] for i in r["issues"]}
+
+    assert cats("project = JIRA820 AND statusCategory = Done") == {"done"}
+    assert "done" not in cats("project = JIRA820 AND statusCategory != Done")
+    assert cats("project = JIRA820 AND statusCategory != Done")      # 비어 있으면 검증이 무의미
+    assert "Epic" not in {t for t in cats("project = JIRA820 AND type NOT IN (Epic)")}

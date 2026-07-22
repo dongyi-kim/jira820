@@ -104,6 +104,9 @@ class Config:
     priorities: list = field(default_factory=lambda: [list(p) for p in DEFAULT_PRIORITIES])
     # 이슈에 priority 가 없을 때 쓸 기본값. None 이면 목록의 가운데 값.
     default_priority: Optional[str] = None
+    # /rest/api/2/myself 가 돌려줄 사용자(=이 세션의 '나'). 실 Jira 는 SSO 로그인 사용자다.
+    # world 를 주입해 쓰는 쪽은 자기 사용자로 바꿔야 '내 할 일' 류 화면이 실데이터로 돈다.
+    current_user: str = "admin"
 
     # volume knobs
     epics_per_module: int = 3

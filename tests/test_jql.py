@@ -68,3 +68,22 @@ def test_negation_operators_invert_the_match():
     assert "done" not in cats("project = JIRA820 AND statusCategory != Done")
     assert cats("project = JIRA820 AND statusCategory != Done")      # 비어 있으면 검증이 무의미
     assert "Epic" not in {t for t in cats("project = JIRA820 AND type NOT IN (Epic)")}
+
+
+def test_parentheses_group_or_against_and():
+    """'(a OR b) AND c' — 괄호를 무시하고 자르면 조건이 통째로 무너진다(전에 그랬다)."""
+    from jira820 import make_app
+    from fastapi.testclient import TestClient
+    cl = TestClient(make_app())
+
+    def keys(jql):
+        r = cl.get("/rest/api/2/search",
+                   params={"jql": jql, "fields": "status", "maxResults": 999}).json()
+        return {i["key"] for i in r["issues"]}
+
+    all_open = keys('project = JIRA820 AND statusCategory != Done')
+    grouped = keys('(project = JIRA820 OR project = NOPE) AND statusCategory != Done')
+    assert grouped == all_open and grouped                 # 괄호가 OR 를 묶어야 같은 결과
+    # 괄호가 없으면 AND 가 더 강하게 묶인다(Jira 우선순위) → 결과가 달라야 정상
+    assert keys('project = NOPE OR project = JIRA820 AND statusCategory = Done') \
+        == keys('project = JIRA820 AND statusCategory = Done')

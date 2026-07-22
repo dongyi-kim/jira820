@@ -24,36 +24,83 @@ def filter_keys(store, jql: str) -> list:
     order = _extract_order(jql)
     body = re.sub(r"(?i)\s+order\s+by\s+.*$", "", jql).strip()
 
-    groups = re.split(r"(?i)\s+or\s+", body) if body else []
-    group_preds = [[p for p in (_pred(store, c) for c in _split_and(g)) if p] for g in groups]
+    pred = _expr(store, body)
 
     def match(it):
-        if not group_preds:
-            return True
-        return any(all(p(it) for p in preds) for preds in group_preds if preds is not None) \
-            if any(group_preds) else True
+        return True if pred is None else pred(it)
 
     matched = [it for it in store.issues.values() if match(it)]
     _sort(matched, order)
     return [it["key"] for it in matched]
 
 
+def _unwrap(text: str) -> str:
+    """전체를 감싼 괄호쌍만 벗긴다(첫 '(' 가 마지막 ')' 와 매칭될 때). in (...) 의 괄호는 보존."""
+    text = text.strip()
+    if not (text.startswith("(") and text.endswith(")")):
+        return text
+    depth = 0
+    for i, ch in enumerate(text):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0 and i != len(text) - 1:
+                return text                 # 앞 괄호가 중간에서 닫힌다 = 전체 감싼 게 아니다
+    return text[1:-1].strip()
+
+
+def _split_top(text: str, kw: str):
+    """AND/OR 로 자르되 **괄호 밖(depth 0)에서만**. 괄호를 무시하고 자르면
+    '(a OR b) AND c' 가 'a' / 'b) AND c' 로 쪼개져 조건이 통째로 무너진다."""
+    rx = re.compile(r"(?i)\s+" + kw + r"\s+")
+    cuts, depth, pos = [], 0, 0
+    while pos < len(text):
+        ch = text[pos]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+        elif depth == 0:
+            m = rx.match(text, pos)
+            if m:
+                cuts.append((m.start(), m.end()))
+                pos = m.end()
+                continue
+        pos += 1
+    if not cuts:
+        return [text]
+    parts, last = [], 0
+    for a, b in cuts:
+        parts.append(text[last:a])
+        last = b
+    parts.append(text[last:])
+    return parts
+
+
 def _split_and(group: str):
-    group = group.strip()
-    # 전체를 감싼 괄호쌍만 벗긴다(첫 '(' 가 마지막 ')' 와 매칭될 때). in (...) 의 닫는 괄호는 보존.
-    if group.startswith("(") and group.endswith(")"):
-        depth, wrap = 0, True
-        for i, ch in enumerate(group):
-            if ch == "(":
-                depth += 1
-            elif ch == ")":
-                depth -= 1
-                if depth == 0 and i != len(group) - 1:
-                    wrap = False
-                    break
-        if wrap:
-            group = group[1:-1].strip()
-    return re.split(r"(?i)\s+and\s+", group) if group else []
+    """CQL(cql.py)이 재사용하는 헬퍼 — 전체 괄호를 벗기고 **괄호 밖의** AND 에서만 자른다."""
+    g = _unwrap(group)
+    return _split_top(g, "and") if g.strip() else []
+
+
+def _expr(store, text: str):
+    """JQL 불리언 식 -> 술어. OR 가 AND 보다 느슨하므로 OR 부터 자른다(Jira 와 같은 우선순위)."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    ors = _split_top(text, "or")
+    if len(ors) > 1:
+        preds = [p for p in (_expr(store, o) for o in ors) if p]
+        return (lambda it: any(p(it) for p in preds)) if preds else None
+    ands = _split_top(text, "and")
+    if len(ands) > 1:
+        preds = [p for p in (_expr(store, a) for a in ands) if p]
+        return (lambda it: all(p(it) for p in preds)) if preds else None
+    inner = _unwrap(text)
+    if inner != text:
+        return _expr(store, inner)
+    return _pred(store, text)
 
 
 def _extract_order(jql: str):

@@ -207,6 +207,7 @@ class Seeder:
         self.store.reindex()
         self._build_activity()
         self._build_confluence()
+        self._build_repos()
 
     def _build_remotelinks(self):
         """일부 이슈에 원격 링크 부여 — Confluence 문서 + 외부 Web link.
@@ -392,3 +393,26 @@ class Seeder:
                 pages.sort(key=lambda p: p["date"], reverse=True)
                 conf[uid] = pages
         self.store.confluence = conf
+
+    def _build_repos(self):
+        """Bitbucket DC 7.17.2 저장소 시드 — {project_key: {slug: {repo}}}.
+
+        확인된 실 응답 형태(repo): slug · name · state · project{key,name,type}.
+        여기에 검색 URL 용 links.self[0].href 와 code 검색용 files 를 얹는다.
+        """
+        rng = _rng(self.c.seed, "repos")
+        pk = self.c.project_key
+        pname = getattr(self.txt, "CONF_SPACE_NAMES", {}).get(pk, pk)
+        proj = {"key": pk, "name": pname, "type": "NORMAL"}
+        names = getattr(self.txt, "REPO_NAMES", ["data-pipeline", "catalog-service"])
+        samples = getattr(self.txt, "CODE_SAMPLES",
+                          [("README.md", ["# Service"])])
+        repos = {}
+        for i, slug in enumerate(names):
+            files = []
+            for j in range(rng.randint(2, len(samples))):
+                path, lines = samples[(i + j) % len(samples)]
+                files.append({"path": path, "lines": list(lines)})
+            repos[slug] = {"slug": slug, "name": slug.replace("-", " ").title(),
+                           "state": "AVAILABLE", "project": proj, "files": files}
+        self.store.repos = {pk: repos}

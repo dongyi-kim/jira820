@@ -27,12 +27,17 @@ def iid(key: str) -> str:
 
 
 def dt(d, hm: Optional[str] = None) -> str:
-    """date -> Jira timestamp '...T{hh:mm}:00.000+0000'."""
+    """date -> Jira timestamp '...T{hh:mm[:ss]}.000+0000'.
+    hm 은 'HH:MM' 또는 'HH:MM:SS'. 초까지 주면 그대로 쓴다(같은 분에 여러 댓글이 달려도
+    생성순 정렬이 안정적이도록)."""
     if d is None:
         return None
     if isinstance(d, str):
         return d
-    return d.isoformat() + "T" + (hm or "09:00") + ":00.000+0000"
+    t = hm or "09:00"
+    if t.count(":") < 2:
+        t += ":00"
+    return d.isoformat() + "T" + t + ".000+0000"
 
 
 class Serializer:

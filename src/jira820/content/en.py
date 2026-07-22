@@ -54,6 +54,14 @@ CONF_TITLES = ["ADR: caching strategy", "Sprint retro notes", "Runbook: incident
                "Design doc: connector v2", "Onboarding guide", "API contract review"]
 CONF_SPACES = ["ENG", "PMO", "ARCH", "OPS"]
 CONF_SPACE_NAMES = {"ENG": "Engineering", "PMO": "PMO", "ARCH": "Architecture", "OPS": "Operations"}
+# Bitbucket 저장소/코드 시드 풀
+REPO_NAMES = ["data-pipeline", "catalog-service", "query-engine", "auth-gateway", "monitoring-agent", "web-console"]
+CODE_SAMPLES = [
+    ("src/main/java/App.java", ["public class App {", "    void run() { log.info(\"start\"); }", "}"]),
+    ("README.md", ["# Service", "Deployment and ops guide.", "See config.yml for settings."]),
+    ("src/config.py", ["DEBUG = False", "TIMEOUT = 30", "def load(): return {}"]),
+    ("pipeline/etl.py", ["def transform(df):", "    return df.dropna()", ""]),
+]
 # 상위 폴더 경로 후보(0~3단) — [top … immediate parent]
 CONF_FOLDERS = {
     "ENG": [[], ["Pipelines"], ["Pipelines", "Streaming"], ["Standards"], ["Standards", "Data Governance"]],

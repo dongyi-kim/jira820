@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import server_agile, server_attach, server_read, server_write
+from . import server_agile, server_attach, server_bitbucket, server_read, server_write
 from .config import Config, load_config
 from .store import JiraError, Store
 
@@ -49,6 +49,7 @@ def make_app(store: Store = None, config: Config = None) -> FastAPI:
     app.include_router(server_write.router)
     app.include_router(server_agile.router)
     app.include_router(server_attach.router)
+    app.include_router(server_bitbucket.router)
 
     demo = _demo_dir()
     if demo:

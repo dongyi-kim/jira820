@@ -223,7 +223,7 @@ class Store:
         # 새 댓글은 **실제 현재 시각** — 고정 "09:00" 이면 기존(시드) 댓글보다 이른 시각이 돼
         # 정렬(orderBy=-created) 시 목록 중간에 끼어든다(= 순서가 뒤섞여 보임).
         from datetime import datetime as _dt
-        _t = _dt.now().strftime("%H:%M")
+        _t = _dt.now().strftime("%H:%M:%S")   # 초까지 → 같은 분 다중 댓글도 정렬 안정
         c = {"id": cid, "author": author, "body": body, "kind": "comment", "text": body,
              "created": self.now, "tcreated": _t, "updated": self.now, "tupdated": _t}
         it["comments"].append(c)

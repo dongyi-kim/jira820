@@ -323,7 +323,8 @@ def cql_search(request: Request, cql: str = "", limit: int = 25, start: int = 0,
     base = _base(request)
     pages = cqlmod.search_pages(s, cql, start + limit)
     page_slice = pages[start:start + limit]
-    results = [conf_search_result(p, base) for p in page_slice]
+    terms = cqlmod.search_terms(cql)
+    results = [conf_search_result(p, base, terms) for p in page_slice]
     return {"results": results, "start": start, "limit": limit, "size": len(results),
             "totalSize": len(pages), "cqlQuery": cql, "searchDuration": 1,
             "_links": {"base": base, "context": ""}}

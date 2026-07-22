@@ -309,8 +309,22 @@ def _conf_webui(page):
         page.get("space", ""), page.get("id", ""), _conf_slug(page.get("title", "")))
 
 
-def _conf_excerpt(page):
+_HL_A, _HL_B = "@@@hl@@@", "@@@endhl@@@"     # Confluence DC 하이라이트 마커
+
+
+def _conf_excerpt(page, terms=None):
+    """검색 스니펫. term 이 있으면 **매칭 부분 주변**을 잘라 마커로 감싼다(실 Confluence 동작).
+    term 이 없으면(둘러보기 등) 앞부분을 준다."""
     body = (page.get("body") or page.get("title") or "").strip()
+    for t in (terms or []):
+        i = body.lower().find(t.lower())
+        if i < 0:
+            continue
+        start = max(0, i - 60)
+        seg = body[start:i + len(t) + 100]
+        hit = seg.lower().find(t.lower())          # 잘린 구간 내 위치
+        seg = seg[:hit] + _HL_A + seg[hit:hit + len(t)] + _HL_B + seg[hit + len(t):]
+        return ("…" if start > 0 else "") + seg + ("…" if i + len(t) + 100 < len(body) else "")
     return body[:180]
 
 
@@ -345,12 +359,12 @@ def conf_content_obj(page, base_url=""):
     }
 
 
-def conf_search_result(page, base_url=""):
+def conf_search_result(page, base_url="", terms=None):
     """Confluence /rest/api/search 결과 아이템 (excerpt 포함) — DC 9.x 형태."""
     return {
         "content": conf_content_obj(page, base_url),
         "title": page.get("title", ""),
-        "excerpt": _conf_excerpt(page),
+        "excerpt": _conf_excerpt(page, terms),
         "url": _conf_webui(page),
         "entityType": "content",
         "iconCssClass": "aui-iconfont-page-default",

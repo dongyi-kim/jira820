@@ -88,3 +88,16 @@ def test_confluence_search_result_has_ancestors_and_space_name():
     c = res[0]["content"]
     assert c["space"].get("name")                       # 스페이스 표시 이름
     assert "ancestors" in c and isinstance(c["ancestors"], list)
+
+
+def test_confluence_excerpt_highlights_search_term():
+    """excerpt 는 검색어 주변을 잘라 하이라이트 마커로 감싼다(검색어 관련 미리보기)."""
+    cl = TestClient(make_app())
+    # 본문에 흔한 토큰으로 검색
+    r = cl.get("/rest/api/search", params={"cql": 'siteSearch ~ "a"', "limit": 30}).json()
+    res = r.get("results", [])
+    assert res
+    marked = [x for x in res if "@@@hl@@@" in x.get("excerpt", "")]
+    assert marked, "하이라이트 마커가 있는 excerpt 가 없음"
+    ex = marked[0]["excerpt"]
+    assert ex.count("@@@hl@@@") == ex.count("@@@endhl@@@")   # 마커 짝 맞음

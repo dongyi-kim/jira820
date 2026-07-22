@@ -104,3 +104,13 @@ def search_pages(store, cql, limit=25, mention_resolver=None):
     matched = [pg for pg in pages if all(pr(pg) for pr in preds)]
     matched.sort(key=lambda p: p.get("date") or date.min, reverse=True)
     return matched[: max(0, int(limit or 25))]
+
+
+def search_terms(cql):
+    """CQL 에서 text/siteSearch/title ~ "term" 의 term 들을 뽑는다(excerpt 하이라이트용)."""
+    out = []
+    for m in re.finditer(r'(?i)(?:text|sitesearch|title)\s*~\s*"([^"]+)"', cql or ""):
+        t = m.group(1).strip()
+        if t:
+            out.append(t)
+    return out

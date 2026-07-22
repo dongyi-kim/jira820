@@ -1,5 +1,11 @@
 # 변경 이력
 
+## 0.8.0
+
+- **Confluence 검색 결과에 문서 경로** — content 에 `ancestors`(상위 폴더 [최상위 … 직계부모])와
+  `space.name`(표시 이름)을 방출한다. 페이지 레코드의 `ancestors`(폴더 제목 리스트)·`spaceName`
+  을 부풀린다. 소비자가 breadcrumb(문서 경로)를 그릴 수 있다.
+
 ## 0.7.0
 
 - **이슈 remote link(Confluence/Web) 지원** — `GET /rest/api/2/issue/{key}/remotelink`.

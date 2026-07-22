@@ -53,6 +53,14 @@ COMMENT_TYPES = [
 CONF_TITLES = ["ADR: caching strategy", "Sprint retro notes", "Runbook: incident response",
                "Design doc: connector v2", "Onboarding guide", "API contract review"]
 CONF_SPACES = ["ENG", "PMO", "ARCH", "OPS"]
+CONF_SPACE_NAMES = {"ENG": "Engineering", "PMO": "PMO", "ARCH": "Architecture", "OPS": "Operations"}
+# 상위 폴더 경로 후보(0~3단) — [top … immediate parent]
+CONF_FOLDERS = {
+    "ENG": [[], ["Pipelines"], ["Pipelines", "Streaming"], ["Standards"], ["Standards", "Data Governance"]],
+    "PMO": [[], ["Reports"], ["Reports", "Weekly"], ["Deliverables"]],
+    "ARCH": [[], ["Design"], ["Design", "Decisions"], ["Design", "Reviews"]],
+    "OPS": [[], ["Runbooks"], ["Runbooks", "Incidents"], ["Runbooks", "Incidents", "Postmortems"], ["Monitoring"]],
+}
 CONF_ACTIONS = ["created", "updated", "commented on"]
 
 SPRINT_GOALS = ["Ship the connector MVP", "Reduce query p95", "Stabilize the pipeline",

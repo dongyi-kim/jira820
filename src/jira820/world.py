@@ -379,8 +379,12 @@ class Seeder:
                 pages = []
                 for _ in range(rng.randint(0, 4)):
                     _t = rng.choice(self.txt.CONF_TITLES)
-                    pages.append({"title": _t,
-                                  "space": rng.choice(self.txt.CONF_SPACES),
+                    _sp = rng.choice(self.txt.CONF_SPACES)
+                    _folders = getattr(self.txt, "CONF_FOLDERS", {}).get(_sp, [[]])
+                    _names = getattr(self.txt, "CONF_SPACE_NAMES", {})
+                    pages.append({"title": _t, "space": _sp,
+                                  "spaceName": _names.get(_sp, _sp),
+                                  "ancestors": list(rng.choice(_folders)),
                                   "action": rng.choice(self.txt.CONF_ACTIONS),
                                   "body": "%s. %s" % (_t, rng.choice(self.txt.CONF_TITLES)),
                                   "date": self.today - timedelta(days=rng.randint(0, 13)),

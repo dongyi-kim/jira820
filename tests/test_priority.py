@@ -76,3 +76,15 @@ def test_remotelink_empty_for_issue_without_links():
     cl = TestClient(make_app())
     r = cl.get("/rest/api/2/issue/JIRA820-1/remotelink")
     assert r.status_code == 200 and isinstance(r.json(), list)
+
+
+def test_confluence_search_result_has_ancestors_and_space_name():
+    """검색 결과 content 에 ancestors(상위 폴더)와 space.name 이 담긴다 — 경로 UI 용."""
+    cl = TestClient(make_app())
+    import urllib.parse
+    r = cl.get("/rest/api/search", params={"cql": 'siteSearch ~ "a"', "limit": 50}).json()
+    res = r.get("results", [])
+    assert res, "검색 결과 없음"
+    c = res[0]["content"]
+    assert c["space"].get("name")                       # 스페이스 표시 이름
+    assert "ancestors" in c and isinstance(c["ancestors"], list)

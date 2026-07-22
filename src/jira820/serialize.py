@@ -314,14 +314,31 @@ def _conf_excerpt(page):
     return body[:180]
 
 
+# 스페이스 키 → 표시 이름(경로 루트). 주입 world 가 space_names 를 안 주면 키 그대로.
+_CONF_SPACE_NAMES = {"DL": "데이터플랫폼", "PMO": "PMO", "ARCH": "아키텍처", "OPS": "운영"}
+
+
+def _space_name(page, sp):
+    return page.get("spaceName") or _CONF_SPACE_NAMES.get(sp, sp)
+
+
 def conf_content_obj(page, base_url=""):
-    """Confluence /rest/api/content 형태의 content object (search 결과에도 중첩됨)."""
+    """Confluence /rest/api/content 형태의 content object (search 결과에도 중첩됨).
+
+    ancestors: 상위 폴더 페이지들 [최상위 … 직계부모] 순(실 Confluence 형태).
+    문서의 'ancestors'(폴더 제목 리스트)를 페이지 객체로 부풀린다.
+    """
     sp = str(page.get("space") or "")
     pid = str(page.get("id", ""))
+    anc = []
+    for i, title in enumerate(page.get("ancestors") or []):
+        anc.append({"id": f"{pid}a{i}", "type": "page", "title": title,
+                    "_links": {"webui": _conf_webui(page)}})
     return {
         "id": pid, "type": "page", "status": "current",
         "title": page.get("title", ""),
-        "space": {"key": sp, "name": sp, "type": "global"},
+        "space": {"key": sp, "name": _space_name(page, sp), "type": "global"},
+        "ancestors": anc,
         "version": {"when": dt(page.get("date"), page.get("time")), "number": 1},
         "_links": {"webui": _conf_webui(page),
                    "self": (base_url + "/rest/api/content/" + pid) if base_url else "/rest/api/content/" + pid},

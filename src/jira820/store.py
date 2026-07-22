@@ -44,6 +44,8 @@ class Store:
         self.versions: list = []
         self.activity: dict = {}
         self.confluence: dict = {}
+        # Bitbucket 저장소/코드 — {project_key: {slug: {name, description, files:[{path, lines:[...]}]}}}
+        self.repos: dict = {}
         self.by_label: dict = {}
         self.by_assignee: dict = {}
         self.epic_children: dict = {}
@@ -422,6 +424,7 @@ class Store:
             "versions": self.versions,
             "activity": {u: [_ev_to_json(e) for e in evs] for u, evs in self.activity.items()},
             "confluence": {u: [_page_to_json(p) for p in ps] for u, ps in self.confluence.items()},
+            "repos": self.repos,
             "attachments": {aid: _att_to_json(a) for aid, a in self.attachments.items()},
         }
 
@@ -436,6 +439,7 @@ class Store:
         self.issues = {k: _issue_from_json(it) for k, it in d.get("issues", {}).items()}
         self.activity = {u: [_ev_from_json(e) for e in evs] for u, evs in d.get("activity", {}).items()}
         self.confluence = {u: [_page_from_json(p) for p in ps] for u, ps in d.get("confluence", {}).items()}
+        self.repos = d.get("repos", {})
         self.attachments = {aid: _att_from_json(a) for aid, a in d.get("attachments", {}).items()}
         self.reindex()
         self._counter = self._max_counter()

@@ -81,6 +81,7 @@ class Config:
     project_name: str = "JIRA820 Sample Project"
     server_version: str = "8.20.8"
     confluence_version: str = "9.2.4"   # linked Confluence DC (CQL 검색 응답 형태 기준)
+    bitbucket_version: str = "7.17.2"   # linked Bitbucket DC (code/repo 검색 응답 형태 기준)
     locale: str = "en"  # en | ko
 
     # custom field ids
@@ -149,6 +150,7 @@ def load_config() -> Config:
     c.project_name = str(_pick("JIRA820_PROJECT_NAME", ycfg.get("project_name"), c.project_name))
     c.server_version = str(_pick("JIRA820_SERVER_VERSION", ycfg.get("server_version"), c.server_version))
     c.confluence_version = str(_pick("JIRA820_CONFLUENCE_VERSION", ycfg.get("confluence_version"), c.confluence_version))
+    c.bitbucket_version = str(_pick("JIRA820_BITBUCKET_VERSION", ycfg.get("bitbucket_version"), c.bitbucket_version))
     c.locale = str(_pick("JIRA820_LOCALE", ycfg.get("locale"), c.locale)).lower()
     c.sp_field = str(_pick("JIRA820_SP_FIELD", ycfg.get("sp_field"), c.sp_field))
     c.epic_link_field = str(_pick("JIRA820_EPIC_LINK_FIELD", ycfg.get("epic_link_field"), c.epic_link_field))

@@ -213,6 +213,9 @@ _CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
 _IMG_RE = re.compile(r"!([^!\n|]+)(?:\|([^!\n]*))?!")
 _ABS_RE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//|/)", re.I)
 _LINK_RE = re.compile(r"\[(?:([^\]|]+)\|)?([^\]]+)\]")
+# [^file.pdf] — attachment link. Jira renders it as a link to the file attached to that issue.
+# Must run before _LINK_RE, which would otherwise swallow it as a plain [link].
+_ATTACH_RE = re.compile(r"\[\^([^\]\n]+)\]")
 
 
 def _inline(text, mr=None, ar=None) -> str:
@@ -244,6 +247,15 @@ def _inline(text, mr=None, ar=None) -> str:
                 + '" alt=""' + attrs + ' /></span>')
 
     s = _IMG_RE.sub(_img, s)
+
+    # attachment links  [^file.pdf]  (before generic links so the caret form wins)
+    def _attach(m):
+        name = m.group(1).strip()
+        url = (ar(name) if ar else None) or name
+        return ('<a href="' + escape(url, quote=True) + '" class="attachment" title="'
+                + escape(name, quote=True) + '">' + escape(name) + '</a>')
+
+    s = _ATTACH_RE.sub(_attach, s)
 
     # mentions [~user] -> user profile link (실 Jira DC 8.20.8 형태: a.user-hover + ViewProfile)
     def _mention(m):

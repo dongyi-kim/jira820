@@ -193,6 +193,26 @@ def project(key: str, request: Request):
     return obj
 
 
+@router.get("/rest/api/2/jql/autocompletedata/suggestions")
+def jql_suggestions(request: Request, fieldName: str = "", fieldValue: str = ""):
+    """JQL field value suggestions. Clients use this for label autocomplete — without it a
+    'labels' editor can only ever create new values, never reuse existing ones."""
+    s = _store(request)
+    q = (fieldValue or "").lower()
+    vals = []
+    if fieldName == "labels":
+        seen = set()
+        for it in s.issues.values():
+            for lb in (it.get("labels") or []):
+                if lb not in seen and q in lb.lower():
+                    seen.add(lb)
+                    vals.append(lb)
+    elif fieldName == "component":
+        vals = [c for c in s.config.components if q in c.lower()]
+    vals.sort()
+    return {"results": [{"value": v, "displayName": v} for v in vals[:20]]}
+
+
 @router.get("/rest/api/2/project/{key}/components")
 def components(key: str, request: Request):
     _, comps = _project_obj(request)
@@ -236,13 +256,27 @@ def createmeta(request: Request):
 def editmeta(key: str, request: Request):
     s = _store(request)
     s.get_issue(key)
+    # Fields the current user may edit on this issue. A client that offers inline editing needs
+    # this to know which pencils to show — guessing means opening an editor that then 403s.
     return {"fields": {
         "summary": {"required": True, "name": "Summary", "schema": {"type": "string"}, "operations": ["set"]},
         "description": {"required": False, "name": "Description", "schema": {"type": "string"}, "operations": ["set"]},
         "assignee": {"required": False, "name": "Assignee", "schema": {"type": "user"}, "operations": ["set"]},
-        "labels": {"required": False, "name": "Labels", "schema": {"type": "array"}, "operations": ["add", "set", "remove"]},
+        "reporter": {"required": True, "name": "Reporter", "schema": {"type": "user"}, "operations": ["set"]},
+        "priority": {"required": False, "name": "Priority", "schema": {"type": "priority"},
+                     "operations": ["set"],
+                     "allowedValues": [s.serializer.priority_obj(n) for n, _i in s.config.priorities]},
+        "labels": {"required": False, "name": "Labels", "schema": {"type": "array", "items": "string"},
+                   "operations": ["add", "set", "remove"]},
+        "components": {"required": False, "name": "Component/s",
+                       "schema": {"type": "array", "items": "component"},
+                       "operations": ["add", "set", "remove"],
+                       "allowedValues": [{"id": str(1000 + i), "name": c}
+                                         for i, c in enumerate(s.config.components)]},
         "duedate": {"required": False, "name": "Due Date", "schema": {"type": "date"}, "operations": ["set"]},
         s.config.sp_field: {"required": False, "name": "Story Points", "schema": {"type": "number"}, "operations": ["set"]},
+        s.config.epic_link_field: {"required": False, "name": "Epic Link",
+                                   "schema": {"type": "any", "custom": "epic-link"}, "operations": ["set"]},
     }}
 
 

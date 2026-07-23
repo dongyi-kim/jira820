@@ -168,6 +168,10 @@ class Store:
             it["due"] = _parse_date(f["duedate"])
         if "assignee" in f:
             it["assignee"] = (f["assignee"] or {}).get("name")
+        if "priority" in f:
+            it["priority"] = (f["priority"] or {}).get("name") or it.get("priority")
+        if "reporter" in f:
+            it["reporter"] = (f["reporter"] or {}).get("name")
         if "components" in f:
             it["component"] = (f["components"][0].get("name") if f["components"] else None)
         if self.config.sp_field in f:

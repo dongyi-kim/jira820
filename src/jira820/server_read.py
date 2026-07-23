@@ -308,6 +308,24 @@ def worklog(key: str, request: Request):
     return {"startAt": 0, "maxResults": len(logs), "total": len(logs), "worklogs": logs}
 
 
+@router.get("/rest/api/2/configuration")
+def configuration(request: Request):
+    """Instance configuration. `timeTrackingConfiguration` tells a client how long a day is —
+    "1d" means 8h here but 24h elsewhere, so a client that lets users enter days must read it
+    instead of guessing (Jira DC default: 8h/day, 5d/week)."""
+    s = _store(request)
+    return {
+        "votingEnabled": True, "watchingEnabled": True, "timeTrackingEnabled": True,
+        "subTasksEnabled": True, "issueLinkingEnabled": True, "attachmentsEnabled": True,
+        "unassignedIssuesAllowed": True,
+        "timeTrackingConfiguration": {
+            "workingHoursPerDay": float(getattr(s.config, "working_hours_per_day", 8.0)),
+            "workingDaysPerWeek": float(getattr(s.config, "working_days_per_week", 5.0)),
+            "timeFormat": "pretty", "defaultUnit": "minute",
+        },
+    }
+
+
 @router.get("/rest/api/2/issue/{key}/transitions")
 def transitions(key: str, request: Request):
     s = _store(request)

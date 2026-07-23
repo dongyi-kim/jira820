@@ -105,6 +105,9 @@ class Config:
     # handy for driving a client. Set it to model a real workflow — clients that render a
     # "move to..." menu need this to show only reachable statuses.
     transition_scheme: dict = field(default_factory=dict)
+    # Time tracking: how Jira converts "1d"/"1w" in duration strings. Jira DC defaults.
+    working_hours_per_day: float = 8.0
+    working_days_per_week: float = 5.0
     issue_types: list = field(default_factory=lambda: [list(t) for t in DEFAULT_ISSUE_TYPES])
     priorities: list = field(default_factory=lambda: [list(p) for p in DEFAULT_PRIORITIES])
     # 이슈에 priority 가 없을 때 쓸 기본값. None 이면 목록의 가운데 값.

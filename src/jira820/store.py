@@ -188,12 +188,14 @@ class Store:
         self.reindex()
         self._touch_persist()
 
-    def transition_issue(self, key: str, transition_id: str):
+    def transition_issue(self, key: str, transition_id: str, fields=None, update=None):
         self._require_writable()
         it = self.get_issue(key)
         target = self.workflow.target_of(transition_id)
         if not target:
             raise JiraError(400, f"Transition id {transition_id} is not valid.")
+        if not self.workflow.is_allowed(it["statusName"], target):
+            raise JiraError(400, f"Transition to '{target}' is not valid from '{it['statusName']}'.")
         old_status = it["statusName"]
         old_id = self.workflow.by_name.get(old_status, ("", "1"))[1]
         it["statusName"] = target
@@ -206,6 +208,26 @@ class Store:
         else:
             it["resolved"] = None
             it["resolution"] = None
+        # Screen fields submitted with the transition (Jira applies them as part of the move).
+        f, u = fields or {}, update or {}
+        if isinstance(f.get("resolution"), dict):
+            it["resolution"] = f["resolution"].get("name") or it.get("resolution")
+        if isinstance(f.get("assignee"), dict):
+            it["assignee"] = f["assignee"].get("name") or it.get("assignee")
+        for w in (u.get("worklog") or []):
+            add = (w or {}).get("add") or {}
+            secs = _duration_secs(add.get("timeSpent") or "")
+            if secs:
+                # Worklog entries are stored as {date, time, seconds} — the serializer formats
+                # the duration back out. Storing the raw "2h 30m" string here would silently
+                # serialize as 0m (the serializer never reads it).
+                it.setdefault("worklog", []).append(
+                    {"author": it.get("assignee"), "date": self.now, "time": "09:00",
+                     "seconds": secs, "comment": add.get("comment", "")})
+        for c in (u.get("comment") or []):
+            body = ((c or {}).get("add") or {}).get("body")
+            if body:
+                self.add_comment(key, body)
         it["updated"] = self.now
         it["changelog"].append({
             "author": "admin", "date": self.now, "time": "09:00",
@@ -604,3 +626,16 @@ def _page_from_json(p):
 
 def _d(v):
     return v.isoformat() if isinstance(v, date) else v
+
+
+# Jira duration string -> seconds. 8h day / 5d week, matching serialize._fmt_secs so a value
+# written here reads back identically.
+_DUR_UNIT = {"w": 5 * 8 * 3600, "d": 8 * 3600, "h": 3600, "m": 60}
+
+
+def _duration_secs(text: str) -> int:
+    import re
+    total = 0
+    for num, unit in re.findall(r"(\d+)\s*([wdhm])", (text or "").lower()):
+        total += int(num) * _DUR_UNIT[unit]
+    return total

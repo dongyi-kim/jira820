@@ -19,6 +19,8 @@ class Workflow:
         # transition id (stable) per target status
         self._tid = {name: str(11 + i * 10) for i, (name, _c, _s) in enumerate(self.statuses)}
         self._by_tid = {tid: name for name, tid in self._tid.items()}
+        # {status: [reachable status, ...]}. Empty means permissive (anything -> anything).
+        self.scheme = {k: list(v) for k, v in (getattr(config, "transition_scheme", None) or {}).items()}
 
     def category_of(self, status_name: str) -> str:
         return self.by_name.get(status_name, ("todo", "1"))[0]
@@ -30,20 +32,68 @@ class Workflow:
                 return name
         return self.statuses[0][0]
 
-    def available_transitions(self, serializer, current_status: str) -> list:
+    # Transition screen fields, mirroring a common Jira DC setup: entering a done-category
+    # status opens a screen asking for time spent, assignee and resolution. Clients render
+    # this from `?expand=transitions.fields` — without it they cannot know what to ask for.
+    RESOLUTIONS = [("1", "Done"), ("2", "Won't Do"), ("3", "Duplicate"), ("4", "Cannot Reproduce")]
+
+    def _screen_fields(self, serializer, target_cat: str) -> dict:
+        if target_cat != "done":
+            return {}
+        return {
+            "worklog": {
+                "required": True, "name": "Log Work",
+                "schema": {"type": "array", "items": "worklog", "system": "worklog"},
+                "operations": ["add"], "allowedValues": [],
+            },
+            "assignee": {
+                "required": True, "name": "Assignee",
+                "schema": {"type": "user", "system": "assignee"},
+                "operations": ["set"], "autoCompleteUrl": "/rest/api/2/user/search?username=",
+            },
+            "resolution": {
+                "required": True, "name": "Resolution",
+                "schema": {"type": "resolution", "system": "resolution"},
+                "operations": ["set"],
+                "allowedValues": [{"id": rid, "name": rname} for rid, rname in self.RESOLUTIONS],
+            },
+            "comment": {
+                "required": False, "name": "Comment",
+                "schema": {"type": "comment", "system": "comment"},
+                "operations": ["add"], "allowedValues": [],
+            },
+        }
+
+    def reachable_from(self, current_status: str) -> list:
+        """Statuses reachable from `current_status`. Without a scheme every other status is."""
+        if not self.scheme:
+            return [n for n, _c, _s in self.statuses if n != current_status]
+        return [n for n in self.scheme.get(current_status, []) if n in self.by_name]
+
+    def available_transitions(self, serializer, current_status: str, with_fields: bool = False) -> list:
         out = []
-        for name, _cat, _sid in self.statuses:
-            if name == current_status:
+        allowed = self.reachable_from(current_status)
+        for name, cat, _sid in self.statuses:
+            if name == current_status or name not in allowed:
                 continue
-            out.append({
+            t = {
                 "id": self._tid[name], "name": f"To {name}",
                 "to": serializer.status_obj(name),
-                "hasScreen": False, "isGlobal": True, "isInitial": False, "isConditional": False,
-            })
+                "hasScreen": cat == "done", "isGlobal": True,
+                "isInitial": False, "isConditional": False,
+            }
+            if with_fields:
+                t["fields"] = self._screen_fields(serializer, cat)
+            out.append(t)
         return out
 
     def target_of(self, transition_id: str) -> Optional[str]:
         return self._by_tid.get(str(transition_id))
+
+    def is_allowed(self, current_status: str, target: str) -> bool:
+        """A transition id alone is not enough — Jira also rejects moves the workflow forbids.
+        Without this the mock would accept transitions its own /transitions never offered."""
+        return target in self.reachable_from(current_status)
 
     # ── kanban columns ──
     def kanban_columns(self, serializer) -> list:

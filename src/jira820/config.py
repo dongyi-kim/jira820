@@ -100,6 +100,11 @@ class Config:
     modules: list = field(default_factory=lambda: list(DEFAULT_MODULES))
     components_extra: list = field(default_factory=lambda: list(DEFAULT_COMPONENTS_EXTRA))
     statuses: list = field(default_factory=lambda: [list(s) for s in DEFAULT_STATUSES])
+    # Allowed transitions per status: {"Open": ["In Progress", "Resolved"], ...}.
+    # Empty (default) keeps the permissive scheme where any status reaches any other, which is
+    # handy for driving a client. Set it to model a real workflow — clients that render a
+    # "move to..." menu need this to show only reachable statuses.
+    transition_scheme: dict = field(default_factory=dict)
     issue_types: list = field(default_factory=lambda: [list(t) for t in DEFAULT_ISSUE_TYPES])
     priorities: list = field(default_factory=lambda: [list(p) for p in DEFAULT_PRIORITIES])
     # 이슈에 priority 가 없을 때 쓸 기본값. None 이면 목록의 가운데 값.
@@ -168,6 +173,8 @@ def load_config() -> Config:
         c.components_extra = list(ycfg["components_extra"])
     if ycfg.get("statuses"):
         c.statuses = [list(s) for s in ycfg["statuses"]]
+    if ycfg.get("transition_scheme"):
+        c.transition_scheme = {str(k): list(v) for k, v in ycfg["transition_scheme"].items()}
     if ycfg.get("issue_types"):
         c.issue_types = [list(t) for t in ycfg["issue_types"]]
     if ycfg.get("priorities"):

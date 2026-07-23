@@ -312,8 +312,11 @@ def worklog(key: str, request: Request):
 def transitions(key: str, request: Request):
     s = _store(request)
     it = s.get_issue(key)
+    expand = (request.query_params.get("expand") or "")
+    with_fields = "transitions.fields" in expand
     return {"expand": "transitions",
-            "transitions": s.workflow.available_transitions(s.serializer, it["statusName"])}
+            "transitions": s.workflow.available_transitions(
+                s.serializer, it["statusName"], with_fields=with_fields)}
 
 
 @router.get("/activity")

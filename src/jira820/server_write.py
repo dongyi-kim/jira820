@@ -46,7 +46,7 @@ async def do_transition(key: str, request: Request):
     s = _store(request)
     body = await _json(request)
     tid = (body.get("transition") or {}).get("id") or body.get("id")
-    s.transition_issue(key, str(tid))
+    s.transition_issue(key, str(tid), fields=body.get("fields"), update=body.get("update"))
     return Response(status_code=204)
 
 

@@ -87,3 +87,23 @@ def test_parentheses_group_or_against_and():
     # 괄호가 없으면 AND 가 더 강하게 묶인다(Jira 우선순위) → 결과가 달라야 정상
     assert keys('project = NOPE OR project = JIRA820 AND statusCategory = Done') \
         == keys('project = JIRA820 AND statusCategory = Done')
+
+
+def test_sprint_functions_match_state():
+    """실 Jira 의 openSprints()/closedSprints() — 이름 비교만 지원하면 실서비스 JQL 이 안 돈다."""
+    from jira820 import make_app
+    from fastapi.testclient import TestClient
+    cl = TestClient(make_app())
+    boards = cl.get("/rest/agile/1.0/board").json().get("values") or []
+    if not boards:
+        return                                     # 보드가 없으면 스킵(구성에 따라 다름)
+    bid = boards[0]["id"]
+    sprints = cl.get(f"/rest/agile/1.0/board/{bid}/sprint").json().get("values") or []
+    if not any(s.get("state") == "active" for s in sprints):
+        return
+    r = cl.get("/rest/api/2/search", params={"jql": "sprint in openSprints()", "maxResults": 500}).json()
+    keys = {i["key"] for i in r["issues"]}
+    assert keys, "활성 스프린트 이슈가 하나도 안 잡혔다"
+    closed = cl.get("/rest/api/2/search",
+                    params={"jql": "sprint in closedSprints()", "maxResults": 500}).json()
+    assert keys != {i["key"] for i in closed["issues"]}      # 서로 다른 집합이어야 한다

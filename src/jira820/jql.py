@@ -228,6 +228,19 @@ def _pred_pos(store, clause):
         low = [x.lower() for x in vals]
         return lambda it: (it.get("type") or "").lower() in low
     if field == "sprint":
+        # 실 Jira DC 의 스프린트 함수 — openSprints()/closedSprints()/futureSprints().
+        # 이름/ID 비교만 지원하면 실서비스 JQL 이 그대로 안 돌아간다(가장 흔한 사용법이 이 함수다).
+        _FN = {"opensprints()": "active", "closedsprints()": "closed", "futuresprints()": "future"}
+        want_states = {_FN[v.lower()] for v in vals if v.lower() in _FN}
+        if want_states:
+            def sp_fn(it):
+                for sid in it.get("sprints", []):
+                    s2 = store.sprints.get(sid)
+                    if s2 and s2.get("state") in want_states:
+                        return True
+                return False
+            return sp_fn
+
         def sp(it):
             for sid in it.get("sprints", []):
                 s = store.sprints.get(sid)

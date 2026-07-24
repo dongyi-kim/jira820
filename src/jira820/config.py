@@ -108,6 +108,10 @@ class Config:
     # handy for driving a client. Set it to model a real workflow — clients that render a
     # "move to..." menu need this to show only reachable statuses.
     transition_scheme: dict = field(default_factory=dict)
+    # 전이 화면 — {대상 상태: [필드…]}. 필드 뒤에 '?' 를 붙이면 선택 입력.
+    # 실 Jira 에서 화면은 **어느 전이에나** 붙는다(예: Reopen 에 담당자·코멘트 강제).
+    # 비워 두면 예전과 같다: done 범주로 갈 때만 화면(작업시간·담당자·해결책·코멘트).
+    transition_screens: dict = field(default_factory=dict)
     # Time tracking: how Jira converts "1d"/"1w" in duration strings. Jira DC defaults.
     working_hours_per_day: float = 8.0
     working_days_per_week: float = 5.0
@@ -182,6 +186,8 @@ def load_config() -> Config:
         c.statuses = [list(s) for s in ycfg["statuses"]]
     if ycfg.get("transition_scheme"):
         c.transition_scheme = {str(k): list(v) for k, v in ycfg["transition_scheme"].items()}
+    if ycfg.get("transition_screens"):
+        c.transition_screens = {str(k): list(v) for k, v in ycfg["transition_screens"].items()}
     if ycfg.get("issue_types"):
         c.issue_types = [list(t) for t in ycfg["issue_types"]]
     if ycfg.get("priorities"):

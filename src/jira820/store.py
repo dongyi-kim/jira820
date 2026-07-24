@@ -83,18 +83,36 @@ class Store:
                 epic_children.setdefault(it["epicKey"], []).append(k)
         self.by_label, self.by_assignee, self.epic_children = by_label, by_assignee, epic_children
 
-    def _max_counter(self) -> int:
+    def _max_counter(self, project: str = None) -> int:
+        """이 프로젝트에서 가장 큰 번호. project 를 주면 그 접두어만 센다."""
         mx = 0
         for k in self.issues:
             try:
-                mx = max(mx, int(k.rsplit("-", 1)[1]))
+                pre, num = k.rsplit("-", 1)
+                if project and pre != project:
+                    continue
+                mx = max(mx, int(num))
             except (IndexError, ValueError):
                 pass
         return mx
 
-    def new_key(self) -> str:
-        self._counter += 1
-        return f"{self.config.project_key}-{self._counter}"
+    def new_key(self, project: str = None) -> str:
+        """새 이슈 키. **프로젝트마다 번호가 따로 흐른다** — 주입된 프로젝트(예: DL)에 이슈를
+        만들면서 config 프로젝트의 번호를 쓰면 DL-1 이 이미 있는데 또 DL-1 을 내주게 된다."""
+        proj = project or self.config.project_key
+        if proj == self.config.project_key and not project:
+            self._counter += 1
+            return f"{proj}-{self._counter}"
+        return f"{proj}-{self._max_counter(proj) + 1}"
+
+    def project_keys(self) -> set:
+        """지금 이 저장소에 이슈가 하나라도 있는 프로젝트 키들(주입된 것 포함)."""
+        out = set()
+        for k in self.issues:
+            pre = k.rsplit("-", 1)[0]
+            if pre:
+                out.add(pre)
+        return out
 
     def _require_writable(self):
         if self.config.readonly:
@@ -111,7 +129,9 @@ class Store:
         self._require_writable()
         f = fields or {}
         proj = ((f.get("project") or {}).get("key")) or self.config.project_key
-        if proj != self.config.project_key:
+        # config 프로젝트 + **주입된 프로젝트**(소비자가 자기 world 를 넣은 경우)까지 받는다.
+        # 예전엔 config 것만 받아서, 주입한 프로젝트에 이슈를 만들면 'Unknown project' 였다.
+        if proj != self.config.project_key and proj not in self.project_keys():
             raise JiraError(400, f"Unknown project: {proj}", {"project": "project is required"})
         itype = ((f.get("issuetype") or {}).get("name")
                  or self._type_by_id((f.get("issuetype") or {}).get("id")))
@@ -121,10 +141,13 @@ class Store:
         if not summary:
             raise JiraError(400, "You must specify a summary of the issue.", {"summary": "summary is required"})
 
-        key = self.new_key()
+        key = self.new_key(proj)
         assignee = (f.get("assignee") or {}).get("name")
-        module = self.config.modules[0]
-        comp = None
+        parent = self.issues.get(((f.get("parent") or {}).get("key")) or "")
+        # 하위 이슈는 부모의 모듈/컴포넌트를 물려받는다. 안 그러면 새로 만든 Sub-Task 가 부모와
+        # 다른 모듈로 잡혀 모든 롤업(WBS·워크로드)에서 엉뚱한 칸에 들어간다.
+        module = (parent or {}).get("module") or self.config.modules[0]
+        comp = (parent or {}).get("component")
         if f.get("components"):
             comp = f["components"][0].get("name")
         status = self.workflow.default_status()
@@ -137,8 +160,13 @@ class Store:
             "statusCategory": self.workflow.category_of(status), "statusName": status,
             "resolution": None,
             "labels": list(f.get("labels", [])),
+            # 우선순위를 안 주면 config 의 기본값이 붙는다(우리 환경은 '미분류').
+            # 예전엔 이 필드를 통째로 버려서, 만든 직후 화면과 Jira 의 값이 달랐다.
+            "priority": ((f.get("priority") or {}).get("name")
+                         or self.config.default_priority),
             "sp": f.get(self.config.sp_field),
             "epicKey": f.get(self.config.epic_link_field),
+            "epicName": (f.get(self.config.epic_name_field) if itype == "Epic" else None),
             "parentKey": parent_key,
             "created": self.now, "updated": self.now, "resolved": None,
             "due": _parse_date(f.get("duedate")),

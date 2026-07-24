@@ -10,5 +10,5 @@ from .config import Config, load_config
 from .server import build_store, make_app
 from .store import JiraError, Store
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 __all__ = ["make_app", "build_store", "load_config", "Config", "Store", "JiraError", "__version__"]

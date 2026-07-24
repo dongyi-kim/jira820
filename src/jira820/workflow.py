@@ -37,9 +37,8 @@ class Workflow:
     # this from `?expand=transitions.fields` — without it they cannot know what to ask for.
     RESOLUTIONS = [("1", "Done"), ("2", "Won't Do"), ("3", "Duplicate"), ("4", "Cannot Reproduce")]
 
-    def _screen_fields(self, serializer, target_cat: str) -> dict:
-        if target_cat != "done":
-            return {}
+    #: 화면에 올릴 수 있는 필드들. 전이마다 어떤 조합이든 나올 수 있다(실 Jira 가 그렇다).
+    def _field_specs(self, serializer) -> dict:
         return {
             "worklog": {
                 "required": True, "name": "Log Work",
@@ -58,11 +57,34 @@ class Workflow:
                 "allowedValues": [{"id": rid, "name": rname} for rid, rname in self.RESOLUTIONS],
             },
             "comment": {
-                "required": False, "name": "Comment",
+                "required": True, "name": "Comment",
                 "schema": {"type": "comment", "system": "comment"},
                 "operations": ["add"], "allowedValues": [],
             },
         }
+
+    #: 화면이 없으면 빈 dict. 설정(transition_screens)이 우선이고, 없으면 예전 기본값
+    #: (done 범주로 갈 때만 화면)을 그대로 쓴다 — 기존 소비자의 동작을 바꾸지 않기 위해서다.
+    DEFAULT_DONE_SCREEN = ["worklog", "assignee", "resolution", "comment?"]
+
+    def _screen_fields(self, serializer, target_name: str, target_cat: str) -> dict:
+        spec = (getattr(self.config, "transition_screens", None) or {}).get(target_name)
+        if spec is None:
+            spec = self.DEFAULT_DONE_SCREEN if target_cat == "done" else []
+        if not spec:
+            return {}
+        specs = self._field_specs(serializer)
+        out = {}
+        for name in spec:
+            optional = name.endswith("?")
+            key = name[:-1] if optional else name
+            f = specs.get(key)
+            if not f:
+                continue                      # 모르는 필드는 조용히 건너뛴다(스킴 오타로 죽지 않게)
+            f = dict(f)
+            f["required"] = not optional
+            out[key] = f
+        return out
 
     def reachable_from(self, current_status: str) -> list:
         """Statuses reachable from `current_status`. Without a scheme every other status is."""
@@ -79,11 +101,12 @@ class Workflow:
             t = {
                 "id": self._tid[name], "name": f"To {name}",
                 "to": serializer.status_obj(name),
-                "hasScreen": cat == "done", "isGlobal": True,
-                "isInitial": False, "isConditional": False,
+                "isGlobal": True, "isInitial": False, "isConditional": False,
             }
+            screen = self._screen_fields(serializer, name, cat)
+            t["hasScreen"] = bool(screen)
             if with_fields:
-                t["fields"] = self._screen_fields(serializer, cat)
+                t["fields"] = screen
             out.append(t)
         return out
 

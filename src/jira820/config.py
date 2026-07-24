@@ -87,6 +87,9 @@ class Config:
     # custom field ids
     sp_field: str = "customfield_10004"
     epic_link_field: str = "customfield_10008"
+    # Epic Name(= 보드에 뜨는 짧은 이름). Jira 는 Epic 의 summary 와 **별개 필드**로
+    # 관리한다 — 요약은 문장이고 Epic Name 은 칸에 들어가는 단축어다.
+    epic_name_field: str = "customfield_10011"
     sprint_field: str = "customfield_10007"
 
     # issue-type name treated as a sub-task (drives the issuetype.subtask boolean)
@@ -165,6 +168,7 @@ def load_config() -> Config:
     c.locale = str(_pick("JIRA820_LOCALE", ycfg.get("locale"), c.locale)).lower()
     c.sp_field = str(_pick("JIRA820_SP_FIELD", ycfg.get("sp_field"), c.sp_field))
     c.epic_link_field = str(_pick("JIRA820_EPIC_LINK_FIELD", ycfg.get("epic_link_field"), c.epic_link_field))
+    c.epic_name_field = str(_pick("JIRA820_EPIC_NAME_FIELD", ycfg.get("epic_name_field"), c.epic_name_field))
     c.sprint_field = str(_pick("JIRA820_SPRINT_FIELD", ycfg.get("sprint_field"), c.sprint_field))
     c.subtask_type = str(_pick("JIRA820_SUBTASK_TYPE", ycfg.get("subtask_type"), c.subtask_type))
     c.readonly = _as_bool(_pick("JIRA820_READONLY", ycfg.get("readonly"), c.readonly))

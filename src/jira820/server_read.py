@@ -131,7 +131,7 @@ def fields(request: Request):
            "com.pyxis.greenhopper.jira:gh-epic-link", 10008),
         cf(s.config.sprint_field, "Sprint", "array",
            "com.pyxis.greenhopper.jira:gh-sprint", 10007),
-        cf("customfield_10011", "Epic Name", "string",
+        cf(s.config.epic_name_field, "Epic Name", "string",
            "com.pyxis.greenhopper.jira:gh-epic-label", 10011),
     ]
     return std + custom

@@ -178,6 +178,8 @@ class Store:
             it["sp"] = f[self.config.sp_field]
         if self.config.epic_link_field in f:
             it["epicKey"] = f[self.config.epic_link_field]
+        if self.config.epic_name_field in f:
+            it["epicName"] = f[self.config.epic_name_field]
         it["updated"] = self.now
         it["tupdated"] = "09:00"
         self.reindex()

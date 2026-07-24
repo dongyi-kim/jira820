@@ -171,6 +171,8 @@ class Serializer:
                            for aid in it.get("attachments", []) if aid in self.store.attachments],
             self.c.sp_field: it.get("sp"),
             self.c.epic_link_field: it.get("epicKey"),
+            # Epic 만 값을 갖는다 — 다른 타입에 Epic Name 이 들어 있으면 보드가 오해한다.
+            self.c.epic_name_field: (it.get("epicName") if it.get("type") == "Epic" else None),
             self.c.sprint_field: self._sprint_field(it),
         }
         pk = it.get("parentKey")

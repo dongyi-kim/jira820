@@ -1,5 +1,25 @@
 # 변경 이력
 
+## 0.10.0
+
+- **Epic Name(단축어) 필드** — `epic_name_field`(기본 `customfield_10011`). Jira 는 Epic 의
+  요약과 별개로 보드 칸에 뜨는 짧은 이름을 갖는데, 지금까지 필드 목록에만 있고 값이 없었다.
+  이슈 레코드의 `epicName` 을 방출하고 PUT 으로 수정도 된다. **Epic 타입만** 값을 갖는다 —
+  다른 타입에 들어 있으면 보드가 오해한다.
+- **전이 화면**(`GET /rest/api/2/issue/{key}/transitions?expand=transitions.fields`) + 선택적
+  워크플로 스킴(`transition_scheme`) — 전이마다 요구하는 입력(코멘트·담당자·해결책·시간)이 다르다.
+- **editmeta 확대** — priority·reporter·components·Epic Link 에 `allowedValues` 를 실어,
+  소비자가 "지금 이 사용자가 무엇을 고칠 수 있는가" 를 추측 없이 알 수 있다.
+- **JQL 값 자동완성** `GET /rest/api/2/jql/autocompletedata/suggestions` (라벨 등).
+- `GET /rest/api/2/configuration` — timeTrackingConfiguration(1일 = 몇 시간 등).
+- **첨부 링크 `[^file.pdf]` 렌더** — 실 Jira 처럼 첨부 URL 로 해석한다.
+- JQL: 괄호 그룹 `(a OR b) AND c`, `!=`/`NOT IN`, 스프린트 함수(`openSprints()` 등).
+- 이슈 링크·원격 링크(Confluence/웹) 생성·삭제.
+- 렌더: 코드블록을 실 Jira 태그(`pre.jecodeblock > code.language-X`)로, 강제개행 `\` → `<br/>`,
+  `!첨부파일!` 을 첨부 URL 로, 표 셀 파이프 이스케이프.
+- 시각: 댓글에 실제 현재 시각 부여(고정 09:00 이라 정렬이 뒤섞였다), `HH:MM:SS` 지원.
+- `GET /rest/api/2/user/search` (멘션 자동완성용).
+
 ## 0.9.0
 
 - **검색 excerpt 를 검색어 주변 스니펫으로** — CQL 의 text/siteSearch/title ~ "term" 에서

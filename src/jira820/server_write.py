@@ -54,7 +54,10 @@ async def do_transition(key: str, request: Request):
 async def add_comment(key: str, request: Request):
     s = _store(request)
     body = await _json(request)
-    obj = s.add_comment(key, body.get("body", ""))
+    # 실 Jira 는 댓글 작성자가 **세션 사용자**다. config.current_user 로 맞춘다(없으면 admin).
+    # (안 맞추면 앱에서 '내 댓글' 판정이 늘 실패해 수정/삭제 버튼이 안 뜬다.)
+    author = getattr(s.config, "current_user", "admin") or "admin"
+    obj = s.add_comment(key, body.get("body", ""), author=author)
     return JSONResponse(obj, status_code=201)
 
 

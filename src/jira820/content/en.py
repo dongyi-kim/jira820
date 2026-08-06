@@ -71,5 +71,127 @@ CONF_FOLDERS = {
 }
 CONF_ACTIONS = ["created", "updated", "commented on"]
 
+# Remote link / cross-reference wording
+WEB_LINK_TITLE = "Deploy runbook (Web)"
+CONF_RELATED_LABEL = "Related tickets"
+CROSSREF_COMMENT = "Prior context lives in {key} — worth a read before starting."
+
+# Per-document-type bodies — **index-aligned with CONF_TITLES**.
+# Previously the body was a single "Title. Other title" line: CQL full-text search worked,
+# but there was nothing to actually read or summarize. Multi-section bodies fix that.
+CONF_BODIES = [
+    # 0) ADR: caching strategy
+    """Status: Accepted
+
+Context
+Read latency in the {module} module has grown, and the same queries are issued repeatedly.
+p95 exceeds the target two or three times a day.
+
+Decision
+Introduce a per-read cache with a TTL of {ttl} seconds. Invalidation happens only via an explicit refresh path.
+
+Rationale
+- Re-reading everything is expensive and the data changes rarely
+- {benefit}
+
+Consequences
+- On a cache miss the first response is as slow as before
+- Screens that need strong consistency must refresh first
+
+Follow-up
+- {ac}""",
+    # 1) Sprint retro notes
+    """Attendees: {who} and the team
+
+Keep
+- Work around {goal} landed on schedule
+- Review turnaround got noticeably shorter
+
+Problem
+- {item} took longer than expected
+- Two issues were found right before the release
+
+Try
+- {ac}
+- Agree on acceptance criteria before starting
+
+Action items
+- {who} to write this up before the next sprint starts""",
+    # 2) Runbook: incident response
+    """Applies to: {module}
+
+Symptoms
+- The ingestion lag alert stays firing for more than 10 minutes
+- Dashboard numbers stop updating
+
+First checks
+1. Review recent deployments
+2. Look at queue backlog and consumer health
+3. Check whether the source system announced maintenance
+
+Procedure
+1. Restart the consumers
+2. Move failed records to the retry queue
+3. Escalate to {who} if it does not recover within 10 minutes
+
+Afterwards
+- Write a postmortem and file prevention items as tickets""",
+    # 3) Design doc: connector v2
+    """Background
+The current connector only supports full loads, so the nightly window for {module} keeps growing.
+
+Goals
+- {goal}
+- Checkpoints so a run can resume from the failure point
+
+Scope
+- In: incremental extraction, schema-change detection, retry policy
+- Out: source system schema changes, UI rework
+
+Design
+Split into extract -> normalize -> load, and make each stage idempotent.
+Checkpoints are stored per batch; a restart resumes from the last successful point.
+
+Risks and mitigations
+- Missed schema change -> add a pre-flight validation stage
+- Duplicate loads -> upsert on the business key
+
+Verification
+- {ac}""",
+    # 4) Onboarding guide
+    """For: new joiners on {module}
+
+First week
+1. Request access (repositories, dashboards, monitoring)
+2. Set up a local environment and run one sample pipeline end to end
+3. Read the latest retro and the runbook
+
+Rules to know
+- Every piece of work gets a ticket, linked to its parent
+- Completion is recorded by transitioning status, nothing else
+- Never leave the assignee empty
+
+FAQ
+- Where do I start? -> {item} gives you the whole flow
+
+Mentor: {who}""",
+    # 5) API contract review
+    """Under review: the {module} read API
+
+Agreed
+- Responses are paginated by default
+- Error responses separate code from message
+- Breaking changes require a version bump
+
+Open questions
+- Default sort order for bulk reads
+- Whether {item} related fields are required
+
+Conclusion
+Prioritize {goal}; open questions are settled at the next review.
+
+Attendees: {who}""",
+]
+
 SPRINT_GOALS = ["Ship the connector MVP", "Reduce query p95", "Stabilize the pipeline",
                 "Close out tech debt", "Onboarding polish", "Harden the API"]

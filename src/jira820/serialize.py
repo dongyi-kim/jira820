@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date
+from html import escape
 from typing import Optional
 
 from .render import render_wiki
@@ -357,11 +358,35 @@ def _space_name(page, sp):
     return page.get("spaceName") or _CONF_SPACE_NAMES.get(sp, sp)
 
 
-def conf_content_obj(page, base_url=""):
+def conf_body(page, expand=""):
+    """expand 에 body / body.storage / body.view 가 있으면 본문 표현을 만든다.
+
+    실 Confluence 는 storage(=XHTML 저장형)와 view(=렌더된 HTML)를 따로 준다.
+    우리 코퍼스의 본문은 평문이라 둘 다 문단으로 감싼 같은 HTML 을 돌려준다.
+    expand 가 없으면 None — 검색 결과가 통째로 무거워지는 것을 막는다(실 DC 도 동일).
+    """
+    want = {e.strip().lower() for e in (expand or "").split(",") if e.strip()}
+    reps = set()
+    for e in want:
+        if e == "body":
+            reps |= {"storage", "view"}
+        elif e.startswith("body."):
+            reps.add(e.split(".", 1)[1].split(".", 1)[0])
+    reps &= {"storage", "view"}
+    if not reps:
+        return None
+    text = (page.get("body") or "").strip()
+    html = "".join(f"<p>{escape(ln.strip())}</p>" for ln in text.split("\n") if ln.strip()) or "<p></p>"
+    return {r: {"value": html, "representation": r, "_expandable": {"content": ""}}
+            for r in sorted(reps)}
+
+
+def conf_content_obj(page, base_url="", expand=""):
     """Confluence /rest/api/content 형태의 content object (search 결과에도 중첩됨).
 
     ancestors: 상위 폴더 페이지들 [최상위 … 직계부모] 순(실 Confluence 형태).
     문서의 'ancestors'(폴더 제목 리스트)를 페이지 객체로 부풀린다.
+    expand: 'body.storage' 등을 주면 본문을 함께 싣는다(실 DC 와 동일).
     """
     sp = str(page.get("space") or "")
     pid = str(page.get("id", ""))
@@ -369,7 +394,7 @@ def conf_content_obj(page, base_url=""):
     for i, title in enumerate(page.get("ancestors") or []):
         anc.append({"id": f"{pid}a{i}", "type": "page", "title": title,
                     "_links": {"webui": _conf_webui(page)}})
-    return {
+    obj = {
         "id": pid, "type": "page", "status": "current",
         "title": page.get("title", ""),
         "space": {"key": sp, "name": _space_name(page, sp), "type": "global"},
@@ -378,12 +403,16 @@ def conf_content_obj(page, base_url=""):
         "_links": {"webui": _conf_webui(page),
                    "self": (base_url + "/rest/api/content/" + pid) if base_url else "/rest/api/content/" + pid},
     }
+    body = conf_body(page, expand)
+    if body:
+        obj["body"] = body
+    return obj
 
 
-def conf_search_result(page, base_url="", terms=None):
+def conf_search_result(page, base_url="", terms=None, expand=""):
     """Confluence /rest/api/search 결과 아이템 (excerpt 포함) — DC 9.x 형태."""
     return {
-        "content": conf_content_obj(page, base_url),
+        "content": conf_content_obj(page, base_url, expand),
         "title": page.get("title", ""),
         "excerpt": _conf_excerpt(page, terms),
         "url": _conf_webui(page),

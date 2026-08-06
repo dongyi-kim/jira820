@@ -390,9 +390,28 @@ def content_search(request: Request, cql: str = "", limit: int = 25, expand: str
     s = _store(request)
     base = _base(request)
     pages = cqlmod.search_pages(s, cql, limit)
-    results = [conf_content_obj(p, base) for p in pages]
+    results = [conf_content_obj(p, base, expand) for p in pages]
     return {"results": results, "start": 0, "limit": limit, "size": len(results),
             "_links": {"base": base, "context": ""}}
+
+
+@router.get("/rest/api/content/{cid}")
+def content_by_id(cid: str, request: Request, expand: str = ""):
+    """Confluence 개별 페이지 조회 — `?expand=body.storage` 로 본문까지 가져온다.
+
+    검색(`/rest/api/search`)은 excerpt(스니펫)만 주므로, 문서 내용을 실제로 쓰려면
+    이 경로가 필요하다. (라우트 순서상 위의 `/content/search` 가 먼저 매칭된다.)
+    """
+    from .serialize import conf_content_obj
+    s = _store(request)
+    for p in s.confluence_pages():
+        if str(p.get("id")) == str(cid):
+            return conf_content_obj(p, _base(request), expand)
+    return JSONResponse(
+        {"statusCode": 404,
+         "data": {"authorized": False, "valid": True, "errors": [], "successful": False},
+         "message": f"No content found with id : {cid}"},
+        status_code=404)
 
 
 @router.get("/rest/api/search")
@@ -405,7 +424,7 @@ def cql_search(request: Request, cql: str = "", limit: int = 25, start: int = 0,
     pages = cqlmod.search_pages(s, cql, start + limit)
     page_slice = pages[start:start + limit]
     terms = cqlmod.search_terms(cql)
-    results = [conf_search_result(p, base, terms) for p in page_slice]
+    results = [conf_search_result(p, base, terms, expand) for p in page_slice]
     return {"results": results, "start": start, "limit": limit, "size": len(results),
             "totalSize": len(pages), "cqlQuery": cql, "searchDuration": 1,
             "_links": {"base": base, "context": ""}}

@@ -68,3 +68,65 @@ def test_content_search_contributor_compat(client, app):
     assert "results" in r
     for it in r["results"]:
         assert "version" in it and "space" in it and it["type"] == "page"
+
+
+# ── Confluence 개별 페이지 조회 (본문) ────────────────────────────────────────
+# 검색은 excerpt(스니펫)만 준다. 문서 내용을 실제로 읽거나 요약하려면 본문이 필요하다.
+
+def test_content_by_id_returns_page(client, app):
+    page = app.state.store.confluence_pages()[0]
+    r = ok(client.get(f"/rest/api/content/{page['id']}"))
+    assert r["type"] == "page" and r["title"] == page["title"]
+    assert r["space"]["key"] == str(page["space"])
+    # expand 를 안 주면 본문은 싣지 않는다(실 DC 동일 — 응답이 무거워지는 것 방지).
+    assert "body" not in r
+
+
+def test_content_by_id_expand_body(client, app):
+    page = app.state.store.confluence_pages()[0]
+    pid = page["id"]
+
+    r = ok(client.get(f"/rest/api/content/{pid}", params={"expand": "body.storage"}))
+    assert set(r["body"]) == {"storage"}
+    assert r["body"]["storage"]["representation"] == "storage"
+    assert r["body"]["storage"]["value"].startswith("<p>")
+
+    # expand=body 는 storage + view 둘 다
+    r2 = ok(client.get(f"/rest/api/content/{pid}", params={"expand": "body"}))
+    assert set(r2["body"]) == {"storage", "view"}
+
+    # 다른 expand 값은 본문을 부르지 않는다
+    r3 = ok(client.get(f"/rest/api/content/{pid}", params={"expand": "version,space"}))
+    assert "body" not in r3
+
+
+def test_content_search_can_expand_body(client, app):
+    sp = str(app.state.store.confluence_pages()[0]["space"])
+    r = ok(client.get("/rest/api/search",
+                      params={"cql": f'space = "{sp}"', "limit": 3, "expand": "body.storage"}))
+    assert r["results"] and all("body" in it["content"] for it in r["results"])
+
+
+def test_content_by_id_404(client):
+    r = client.get("/rest/api/content/999999999")
+    assert r.status_code == 404
+    assert "No content found" in r.json()["message"]
+
+
+def test_content_search_route_not_shadowed(client):
+    """/content/search 가 /content/{id} 에 잡아먹히지 않아야 한다(라우트 순서)."""
+    r = ok(client.get("/rest/api/content/search", params={"cql": "type = page", "limit": 1}))
+    assert "results" in r
+
+
+def test_confluence_body_is_substantial(client, app):
+    """본문은 검색·요약이 의미를 갖도록 여러 문단이어야 한다.
+
+    예전 시드는 '제목. 다른제목' 한 줄이라 CQL 은 걸려도 읽을 내용이 없었다.
+    """
+    pages = app.state.store.confluence_pages()
+    bodies = [p.get("body") or "" for p in pages]
+    assert bodies and min(len(b) for b in bodies) > 200
+    assert all(b.count("\n") >= 5 for b in bodies)
+    # 제목과 무관한 실제 문장이 들어 있어야 한다
+    assert any(len(set(b.split())) > 30 for b in bodies)

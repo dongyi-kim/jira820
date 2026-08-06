@@ -203,39 +203,77 @@ class Seeder:
         self._build_versions()
         self._build_boards_sprints()
         self._build_links()
+        # confluence 를 remotelinks 보다 먼저 — 원격 링크가 **실재하는 페이지**를 가리켜야 한다.
+        self._build_confluence()
         self._build_remotelinks()
+        self._build_crossrefs()
         self.store.reindex()
         self._build_activity()
-        self._build_confluence()
         self._build_repos()
 
     def _build_remotelinks(self):
         """일부 이슈에 원격 링크 부여 — Confluence 문서 + 외부 Web link.
-        본문 '언급'과 별개 경로라, 소비자(앱)가 두 소스를 합쳐 중복 제거하는지 검증용."""
+        본문 '언급'과 별개 경로라, 소비자(앱)가 두 소스를 합쳐 중복 제거하는지 검증용.
+
+        Confluence 링크는 **코퍼스에 실재하는 페이지**를 가리킨다. 소비자는 url 의
+        `/pages/{id}/` 를 파싱해 `/rest/api/content/{id}?expand=body.storage` 로 본문을 연다.
+        (예전엔 하드코딩 경로라 어떤 페이지도 가리키지 않는 dead link 였다.)
+        """
+        from .serialize import _conf_webui
         conf = "https://confluence.corp.example"
+        pages = self.store.confluence_pages()
         keys = [k for k in self.store.issues
                 if k.startswith(self.store.config.project_key + "-")]
         keys.sort()
-        specs = [
-            # (Confluence 문서, Web link) — 인덱스가 서로 다른 이슈에 붙는다
-            {"url": f"{conf}/spaces/DL/pages/42013/설계+노트",
-             "title": "설계 노트", "relationship": "documentation",
-             "application": {"type": "com.atlassian.confluence", "name": "Confluence"}},
-            {"url": "https://wiki.corp.example/runbook/deploy",
-             "title": "배포 런북(Web)", "relationship": "mentioned in"},
-            {"url": f"{conf}/display/DL/운영+가이드", "title": "운영 가이드",
-             "application": {"type": "com.atlassian.confluence", "name": "Confluence"}},
-        ]
+
+        def _doc(p, relationship=None):
+            spec = {"url": conf + _conf_webui(p), "title": p.get("title", ""),
+                    "application": {"type": "com.atlassian.confluence", "name": "Confluence"}}
+            if relationship:
+                spec["relationship"] = relationship
+            return spec
+
+        web = {"url": "https://wiki.corp.example/runbook/deploy",
+               "title": getattr(self.txt, "WEB_LINK_TITLE", "배포 런북(Web)"),
+               "relationship": "mentioned in"}
         for i, k in enumerate(keys[:24]):
             picks = []
-            if i % 3 == 0:
-                picks.append(specs[0])
+            if pages and i % 3 == 0:
+                picks.append(_doc(pages[i % len(pages)], "documentation"))
             if i % 4 == 0:
-                picks.append(specs[1])
-            if i % 5 == 0:
-                picks.append(specs[2])
+                picks.append(dict(web))
+            if pages and i % 5 == 0:
+                picks.append(_doc(pages[(i + 1) % len(pages)]))
             if picks:
-                self.store.issues[k]["remotelinks"] = [dict(p) for p in picks]
+                self.store.issues[k]["remotelinks"] = picks
+
+    def _build_crossrefs(self):
+        """코멘트에 티켓 키 상호참조를 심는다.
+
+        issue link·remote link 만으로는 '본문에서 다른 티켓을 언급' 하는 경로가 비어 있었다.
+        실제 Jira 에서는 코멘트에 키를 적어 서로를 가리키는 쪽이 훨씬 흔하고, 소비자가
+        텍스트에서 키를 파싱해 그래프를 넓히는 흐름을 검증하려면 이 데이터가 필요하다.
+        참조 대상은 이미 만들어진 issue link 를 재사용해 두 그래프가 어긋나지 않게 한다.
+        """
+        tmpl = getattr(self.txt, "CROSSREF_COMMENT",
+                       "관련 이력은 {key} 에 정리돼 있습니다. 착수 전에 참고해주세요.")
+        for k in sorted(self.store.issues):
+            it = self.store.issues[k]
+            links = it.get("links") or []
+            if not links:
+                continue
+            other = links[0].get("key")
+            if not other or other == k:
+                continue
+            rng = _rng(self.c.seed, "xref", k)
+            text = tmpl.format(key=other)
+            it["comments"].append({
+                "author": it.get("assignee") or it.get("reporter") or "admin",
+                "kind": "crossref", "text": text, "body": text,
+                "created": it.get("updated") or self.today,
+                "tcreated": self._tm(rng),
+                "id": f"{k}-c{len(it['comments'])}",
+            })
 
     def _build_links(self):
         """이슈 링크(relates to / blocks / duplicates) — 결정적으로 몇 쌍 연결.
@@ -379,7 +417,8 @@ class Seeder:
                 rng = _rng(self.c.seed, "conf", uid)
                 pages = []
                 for _ in range(rng.randint(0, 4)):
-                    _t = rng.choice(self.txt.CONF_TITLES)
+                    _i = rng.randrange(len(self.txt.CONF_TITLES))
+                    _t = self.txt.CONF_TITLES[_i]
                     _sp = rng.choice(self.txt.CONF_SPACES)
                     _folders = getattr(self.txt, "CONF_FOLDERS", {}).get(_sp, [[]])
                     _names = getattr(self.txt, "CONF_SPACE_NAMES", {})
@@ -387,12 +426,51 @@ class Seeder:
                                   "spaceName": _names.get(_sp, _sp),
                                   "ancestors": list(rng.choice(_folders)),
                                   "action": rng.choice(self.txt.CONF_ACTIONS),
-                                  "body": "%s. %s" % (_t, rng.choice(self.txt.CONF_TITLES)),
+                                  "body": self._conf_body(_i, module, uid, rng),
                                   "date": self.today - timedelta(days=rng.randint(0, 13)),
                                   "time": self._tm(rng)})
                 pages.sort(key=lambda p: p["date"], reverse=True)
                 conf[uid] = pages
         self.store.confluence = conf
+
+    def _conf_body(self, idx, module, uid, rng):
+        """문서 유형별 본문 — CONF_BODIES[idx] 를 채워 여러 문단으로 만든다.
+
+        예전엔 '제목. 다른제목' 한 줄이라 CQL 전문검색은 되어도 읽을 내용이 없었다.
+        검색 결과를 실제로 요약·인용하는 클라이언트를 위해 실물에 가깝게 만든다.
+        """
+        tmpls = getattr(self.txt, "CONF_BODIES", None)
+        if not tmpls:
+            return "%s. %s" % (self.txt.CONF_TITLES[idx], rng.choice(self.txt.CONF_TITLES))
+        who = (self.store.users.get(uid) or {}).get("displayName") or uid
+        body = tmpls[idx % len(tmpls)].format(
+            module=module,
+            who=who,
+            goal=rng.choice(self.txt.STORY_GOALS),
+            item=rng.choice(self.txt.TASK_ITEMS),
+            ac=rng.choice(self.txt.ACS),
+            benefit=rng.choice(self.txt.BENEFITS),
+            ttl=rng.choice([60, 300, 900]),
+        ).strip()
+        rel = self._related_keys(module, rng)
+        if rel:
+            label = getattr(self.txt, "CONF_RELATED_LABEL", "관련 티켓")
+            body += "\n\n%s: %s" % (label, ", ".join(rel))
+        return body
+
+    def _related_keys(self, module, rng, n=2):
+        """문서 본문에 적을 관련 티켓 키 — 같은 모듈에서 고른다.
+
+        문서 → 티켓 방향의 엣지가 생겨야 소비자가 양방향으로 그래프를 넓힐 수 있다.
+        """
+        keys = sorted(k for k, it in self.store.issues.items()
+                      if it.get("module") == module and it.get("type") != "Sub-task")
+        if not keys:
+            keys = sorted(self.store.issues)
+        if not keys:
+            return []
+        picked = {keys[rng.randrange(len(keys))] for _ in range(min(n, len(keys)))}
+        return sorted(picked)
 
     def _build_repos(self):
         """Bitbucket DC 7.17.2 저장소 시드 — {project_key: {slug: {repo}}}.

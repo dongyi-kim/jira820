@@ -75,8 +75,32 @@ JIRA820_CONFIG=examples/config.yaml jira820
 **읽기** — `serverInfo`, `myself`, `user`, `field`, `status`, `issuetype`, `priority`, `resolution`,
 `project`(+`/{key}`, `/components`, `/versions`, `/statuses`), `search`(JQL + `fields` 투영 + 페이징),
 `issue/{key}`(`?expand=changelog`), `issue/{key}/comment`, `issue/{key}/worklog`, `issue/{key}/transitions`,
-`issue/createmeta`, `issue/{key}/editmeta`, `issueLinkType`, `activity`(ATOM), `content/search`(Confluence CQL).
+`issue/createmeta`, `issue/{key}/editmeta`, `issueLinkType`, `activity`(ATOM),
+`content/search`(Confluence CQL), **`content/{id}`**(Confluence 개별 페이지).
 이슈는 `fields.issuelinks` 로 **이슈 링크**(relates to / blocks / duplicates / clones)를 제공합니다 — 상대 이슈는 `inwardIssue`/`outwardIssue` 로 방향까지 구분됩니다.
+
+> **Confluence 본문 읽기**: 검색(`/rest/api/search`)은 `excerpt`(스니펫)만 줍니다. 문서 내용을 실제로
+> 읽거나 요약하려면 `?expand=body.storage`(또는 `body` / `body.view`)를 붙이세요 — `content/{id}` 와
+> `content/search` 양쪽에서 동작합니다. 실 DC 처럼 **expand 를 안 주면 본문은 실리지 않습니다.**
+>
+> ```bash
+> curl "$BASE/rest/api/content/search?cql=text~%22checkpoint%22&limit=5"      # 검색
+> curl "$BASE/rest/api/content/2496411071?expand=body.storage"               # 본문까지
+> ```
+
+### 링크 그래프 — 티켓 ↔ Confluence ↔ 티켓
+
+맥락을 따라 넓혀 가는 클라이언트(요약·추천·에이전트)를 위해 **모든 엣지가 실재하는 노드**를 가리킵니다.
+
+| 엣지 | 어디에 | 따라가는 법 |
+|---|---|---|
+| 티켓 → Confluence 문서 | `issue/{key}/remotelink` (`application.type=com.atlassian.confluence`) | url 의 `/pages/{id}/` 를 파싱 → `content/{id}?expand=body.storage` |
+| Confluence 문서 → 티켓 | 본문 말미의 `관련 티켓: KEY-1, KEY-2` | 키를 `[A-Z][A-Z0-9]*-\d+` 로 추출 → `issue/{key}` |
+| 티켓 → 티켓 | `fields.issuelinks` + **코멘트 본문의 키 언급** | 두 경로는 서로 일치합니다(코멘트는 링크 대상을 인용) |
+| 티켓 → 외부 웹 | `remotelink` 중 `application` 이 없는 항목 | 목적지는 mock 밖입니다(의도된 dead link) |
+
+> 외부 웹 링크(`wiki.corp.example`)는 **일부러 살아 있지 않습니다** — 사내/외부 링크가 섞인 실제 환경을
+> 흉내 내기 위한 것이며, 클라이언트가 도달 불가를 어떻게 처리하는지 검증하는 용도입니다.
 
 **쓰기** — `POST issue`, `PUT issue/{key}`, `DELETE issue/{key}`, `POST issue/{key}/transitions`,
 `POST/PUT/DELETE issue/{key}/comment[/{id}]`, `POST issue/{key}/worklog`, `PUT issue/{key}/assignee`.

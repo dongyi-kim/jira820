@@ -98,6 +98,19 @@ def install_confluence(app, *, reset=True):
         values.sort(key=lambda r: (r["position"], r["title"], r["id"]))
         return listing(request, [serialize(request, row, expand) for row in values], start, limit)
 
+    @router.get("/rest/api/space/{space}")
+    def space_detail(space: str, request: Request, expand: str = ""):
+        values = [row for row in rows() if row['space']['key'] == space and not row['parent']]
+        if not values:
+            raise ConfluenceError(404, 'Space not found')
+        # The shared fixture's first root is its configured homepage; restricted
+        # pages never become visible through this projection.
+        values.sort(key=lambda row: (row['position'], row['id']))
+        result = dict(values[0]['space'])
+        if 'homepage' in expand.split(','):
+            result['homepage'] = serialize(request, values[0], 'space,version')
+        return result
+
     @router.get("/rest/api/content")
     def content_list(request: Request, spaceKey: str = "", title: str = "", type: str = "page",
                      status: str = "current", start: int = 0, limit: int = 50, expand: str = ""):

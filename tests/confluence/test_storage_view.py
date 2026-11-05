@@ -27,3 +27,16 @@ def test_storage_renders_native_blocks_binary_references_and_checked_tasks():
 def test_invalid_storage_is_not_silently_rendered(source):
     with pytest.raises(ValueError):
         render_storage(source, "42")
+
+
+def test_basic_macros_keep_plain_text_and_collapsible_body():
+    value = '<ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">More &amp; details</ac:parameter><ac:rich-text-body><p>Body</p></ac:rich-text-body></ac:structured-macro>'
+    value += '<ac:structured-macro ac:name="noformat"><ac:plain-text-body><![CDATA[ x < y\n z ]]></ac:plain-text-body></ac:structured-macro>'
+    value += '<ac:structured-macro ac:name="excerpt"><ac:parameter ac:name="hidden">true</ac:parameter><ac:rich-text-body><p>Hidden</p></ac:rich-text-body></ac:structured-macro>'
+    value += '<ac:structured-macro ac:name="status"><ac:parameter ac:name="title">READY</ac:parameter></ac:structured-macro><hr/>'
+    root=ET.fromstring('<body>'+render_storage(value,'42')+'</body>')
+    assert root.find('details/summary').text=='More & details'
+    assert root.find('details/p').text=='Body'
+    assert root.find('pre/code').text==' x < y\n z '
+    assert 'Hidden' not in ''.join(root.itertext()) and root.find('span').text=='READY'
+    assert root.find('hr') is not None

@@ -13,7 +13,8 @@ AC, RI = "http://atlassian.com/content", "http://atlassian.com/resource/identifi
 def render_storage(value, page_id, users=None):
     if not re.search(r"<(?:ac|ri):", value):
         return value
-    if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", value, re.I):
+    markup = re.sub(r'<!\[CDATA\[[\s\S]*?\]\]>', '', value)
+    if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", markup, re.I):
         raise ValueError("Storage declarations are not supported")
     try:
         root = ET.fromstring(f'<root xmlns:ac="{AC}" xmlns:ri="{RI}">{value}</root>')
@@ -50,11 +51,23 @@ def render_storage(value, page_id, users=None):
             return '<a href="' + escape(href, quote=True) + '">' + escape(text.text if text is not None and text.text else label) + '</a>'
         if tag == f"{{{AC}}}structured-macro":
             name = node.get(f"{{{AC}}}name", "")
-            if name == "code":
+            params = {item.get(f'{{{AC}}}name',''): ''.join(item.itertext()) for item in node.findall(f'{{{AC}}}parameter')}
+            if name in {"code", "noformat"}:
                 body = node.find(f"{{{AC}}}plain-text-body")
                 language = next((p.text for p in node.findall(f"{{{AC}}}parameter") if p.get(f"{{{AC}}}name") == "language"), "")
                 return '<pre><code class="language-' + escape(language or "", quote=True) + '">' + escape(body.text or "" if body is not None else "") + '</code></pre>'
             body = node.find(f"{{{AC}}}rich-text-body")
+            text = content(body) if body is not None else ''
+            if name == 'expand':
+                return '<details><summary>' + escape(params.get('title') or 'Click here to expand...') + '</summary>' + text + '</details>'
+            if name == 'excerpt':
+                return '' if params.get('hidden') == 'true' else text
+            if name == 'panel':
+                return '<div class="panel"><strong>' + escape(params.get('title','')) + '</strong>' + text + '</div>'
+            if name == 'status':
+                return '<span class="status">' + escape(params.get('title','')) + '</span>'
+            if name == 'anchor':
+                return '<span id="' + escape(params.get('',''),quote=True) + '"></span>'
             if name in {"info", "note", "tip", "warning"}:
                 return '<div class="confluence-information-macro confluence-information-macro-' + name + '">' + (content(body) if body is not None else "") + '</div>'
             return '<div class="confluence-unsupported-macro">Unsupported mock macro: ' + escape(name) + '</div>'

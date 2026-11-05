@@ -34,6 +34,14 @@ def get(client, cid, **params):
     return response.json()
 
 
+def test_space_homepage_is_explicit_and_permission_scoped(docs):
+    client,state=docs
+    response=client.get('/rest/api/space/DOC?expand=homepage')
+    assert response.status_code==200 and response.json()['homepage']['id']=='101'
+    assert 'homepage' not in client.get('/rest/api/space/DOC').json()
+    assert client.get('/rest/api/space/MISSING?expand=homepage').status_code==404
+
+
 def test_injected_ids_rich_body_real_ancestors_and_reinstall(docs, app):
     client, state = docs
     root = get(client, "101", expand="body.storage")

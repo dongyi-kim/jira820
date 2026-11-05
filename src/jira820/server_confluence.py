@@ -77,6 +77,14 @@ def install_confluence(app, *, reset=True):
                 "entityType": "content", "iconCssClass": "aui-iconfont-page-default"})
         return {**listing(request, results, start, limit), "cqlQuery": cql, "searchDuration": 1}
 
+    @router.get("/rest/api/user")
+    def user(username: str):
+        value = state().store.users.get(username)
+        if not value:
+            raise ConfluenceError(404, "User not found")
+        return {"type": "known", "username": username, "userKey": "conf-user-" + username,
+                "displayName": value.get("displayName") or value.get("name") or username}
+
     @router.get("/rest/api/space")
     def spaces(request: Request, start: int = 0, limit: int = 50):
         values = {row["space"]["key"]: row["space"] for row in rows()}

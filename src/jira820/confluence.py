@@ -249,7 +249,10 @@ class ConfluenceState:
             data["extensions"] = {"fileSize": len(content), "mediaType": mime}
         reps = {rep for rep in ("storage", "view") if "body" in want or "body." + rep in want}
         if reps:
-            data["body"] = {rep: {"value": row["body"]["storage"]["value"], "representation": rep} for rep in reps}
+            from .confluence_render import render_storage
+            source = row["body"]["storage"]["value"]
+            data["body"] = {rep: {"value": render_storage(source, row.get("container", {}).get("id", cid), self.store.users)
+                                 if rep == "view" else source, "representation": rep} for rep in reps}
         else:
             data.pop("body", None)
         return data

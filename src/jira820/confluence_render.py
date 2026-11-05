@@ -13,7 +13,8 @@ AC, RI = "http://atlassian.com/content", "http://atlassian.com/resource/identifi
 def render_storage(value, page_id, users=None):
     if not re.search(r"<(?:ac|ri):", value):
         return value
-    if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", value, re.I):
+    markup = re.sub(r'<!\[CDATA\[[\s\S]*?\]\]>', '', value)
+    if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", markup, re.I):
         raise ValueError("Storage declarations are not supported")
     try:
         root = ET.fromstring(f'<root xmlns:ac="{AC}" xmlns:ri="{RI}">{value}</root>')

@@ -30,6 +30,8 @@ def test_invalid_storage_is_not_silently_rendered(source):
 
 
 def test_basic_macros_keep_plain_text_and_collapsible_body():
+    literal = '<ac:structured-macro ac:name="code"><ac:plain-text-body><![CDATA[<!DOCTYPE html> &nbsp;]]></ac:plain-text-body></ac:structured-macro>'
+    assert '&lt;!DOCTYPE html&gt; &amp;nbsp;' in render_storage(literal, '42')
     value = '<ac:structured-macro ac:name="expand"><ac:parameter ac:name="title">More &amp; details</ac:parameter><ac:rich-text-body><p>Body</p></ac:rich-text-body></ac:structured-macro>'
     value += '<ac:structured-macro ac:name="noformat"><ac:plain-text-body><![CDATA[ x < y\n z ]]></ac:plain-text-body></ac:structured-macro>'
     value += '<ac:structured-macro ac:name="excerpt"><ac:parameter ac:name="hidden">true</ac:parameter><ac:rich-text-body><p>Hidden</p></ac:rich-text-body></ac:structured-macro>'

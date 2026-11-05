@@ -44,6 +44,8 @@ class Store:
         self.versions: list = []
         self.activity: dict = {}
         self.confluence: dict = {}
+        self._confluence_state = None
+        self._confluence_snapshot = None
         # Bitbucket 저장소/코드 — {project_key: {slug: {name, description, files:[{path, lines:[...]}]}}}
         self.repos: dict = {}
         self.by_label: dict = {}
@@ -515,11 +517,12 @@ class Store:
         seen = {}
         for uid, pages in self.confluence.items():
             for p in pages:
-                key = (p.get("title") or "", str(p.get("space") or ""))
+                legacy_key = (p.get("title") or "", str(p.get("space") or ""))
+                key = ("id", str(p["id"])) if p.get("id") else legacy_key
                 if key in seen:
                     continue
-                pid = int(hashlib.md5(("%s|%s" % key).encode("utf-8")).hexdigest()[:8], 16)
-                seen[key] = dict(p, author=uid, id=pid)
+                pid = p.get("id") or int(hashlib.md5(("%s|%s" % legacy_key).encode("utf-8")).hexdigest()[:8], 16)
+                seen[key] = dict(p, author=p.get("author") or uid, id=pid)
         return list(seen.values())
 
     def sprint_json(self, sid) -> dict:
@@ -553,6 +556,7 @@ class Store:
             "versions": self.versions,
             "activity": {u: [_ev_to_json(e) for e in evs] for u, evs in self.activity.items()},
             "confluence": {u: [_page_to_json(p) for p in ps] for u, ps in self.confluence.items()},
+            "confluenceState": self._confluence_state.snapshot() if self._confluence_state else self._confluence_snapshot,
             "repos": self.repos,
             "attachments": {aid: _att_to_json(a) for aid, a in self.attachments.items()},
         }
@@ -568,6 +572,7 @@ class Store:
         self.issues = {k: _issue_from_json(it) for k, it in d.get("issues", {}).items()}
         self.activity = {u: [_ev_from_json(e) for e in evs] for u, evs in d.get("activity", {}).items()}
         self.confluence = {u: [_page_from_json(p) for p in ps] for u, ps in d.get("confluence", {}).items()}
+        self._confluence_snapshot = d.get("confluenceState")
         self.repos = d.get("repos", {})
         self.attachments = {aid: _att_from_json(a) for aid, a in d.get("attachments", {}).items()}
         self.reindex()

@@ -1,5 +1,21 @@
 # 변경 이력
 
+## 0.13.0
+
+- **Confluence 게시 문서 쓰기·계층 탐색** — Space 목록과 루트/하위 문서 pagination,
+  문서 생성·본문/제목 수정·동일 Space의 부모 변경·휴지통/복원을 제공합니다.
+  수정은 현재 revision + 1을 요구하며 충돌은 409, 과거 revision 조회는 당시 본문을 반환합니다.
+- **댓글·첨부·라벨·제한 설정** — 댓글 CRUD, 첨부 업로드/버전 갱신/다운로드/삭제,
+  라벨 및 read/update 제한 설정 저장을 지원합니다. `readonly`와 기존 JSON persistence를
+  그대로 사용하며 수정한 문서, 과거 본문, 첨부 바이트가 재시작 후 복원됩니다.
+- **재사용 가능한 문서 fixture** — `store.confluence`의 기존 title/space 레코드를 유지하며,
+  명시적 numeric `id`, `parentId`, 실제 ID를 가진 ancestors, storage XHTML을 추가 지원합니다.
+  독립 실행과 소비자 앱 모두 같은 `ConfluenceState`와 REST 라우터를 사용합니다.
+- **CQL 조건을 정확히 적용** — AND/OR/NOT, 괄호, 계층/라벨/인물/날짜 조건과 다중 정렬을 지원합니다.
+  **호환성 주의:** 이전에 무시하던 미지원·잘못된 조건은 이제 HTTP 400을 반환합니다.
+  필터가 조용히 사라져 더 넓은 결과를 반환하는 일을 방지합니다.
+- Synchrony 동시 편집, 미게시 초안, 완전한 권한 엔진과 매크로 렌더러는 재현하지 않습니다.
+
 ## 0.12.0
 
 - **Confluence 본문 읽기** — `GET /rest/api/content/{id}` 신설, `?expand=body.storage`(또는

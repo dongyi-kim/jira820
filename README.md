@@ -6,7 +6,7 @@ REST v2 는 물론 Agile(`/rest/agile/1.0/`) API 까지 — **실제 Scrum 스�
 이동)까지 받아들이므로**, Jira 인스턴스·라이선스·DB 없이 **티켓 뷰어 *및* 작성 클라이언트**를 개발·테스트할 수 있습니다.
 
 **연동 제품 버전(고정):** Jira DC **8.20.8** · Confluence DC **9.2.4** · Bitbucket DC **7.17.2**.
-CQL 검색(`/rest/api/search`) 응답은 이 Confluence 9.2.4 형태를 따릅니다.
+CQL 검색과 게시 문서 REST는 이 Confluence 9.2.4 형태의 지원 범위를 따릅니다.
 버전 표기는 `JIRA820_CONFLUENCE_VERSION` / `JIRA820_SERVER_VERSION` 으로 바꿀 수 있습니다.
 
 또한 **통합 검색**(JQL `text ~`, Confluence CQL 검색)과 **멀티 프로젝트/스페이스**(소비자가 자체
@@ -88,6 +88,48 @@ JIRA820_CONFIG=examples/config.yaml jira820
 > curl "$BASE/rest/api/content/2496411071?expand=body.storage"               # 본문까지
 > ```
 
+### Confluence 게시 문서 클라이언트 테스트
+
+`make_app()`에는 Confluence REST가 기본으로 포함됩니다. 소비자 앱 전용 코드를 가져오지 않습니다.
+
+| 기능 | REST 경로 |
+|---|---|
+| Space·루트·직계 하위 목록 | `GET /rest/api/space`, `/space/{key}/content/page?depth=root`, `/content/{id}/child/page` |
+| 검색·문서·과거 revision 읽기 | `GET /rest/api/search`, `/content/search`, `/content/{id}?version=N&expand=body.storage`, `/content/{id}/history` |
+| 게시 문서·댓글 생성/수정/휴지통 | `POST /rest/api/content`, `PUT/DELETE /content/{id}`, `/content/{id}/child/comment` |
+| 첨부 업로드·데이터 갱신·삭제 | `POST /content/{id}/child/attachment`, `POST /content/{id}/child/attachment/{aid}/data`, `DELETE /content/{id}/child/attachment/{aid}` |
+| 첨부 다운로드 | 응답의 `_links.download`, `?version=N`으로 바이트 버전 지정 |
+| 라벨·제한 설정 | `/content/{id}/label`, `GET /content/{id}/restriction/byOperation`, `PUT /content/{id}/restriction` |
+
+위 축약 경로의 공통 접두사는 `/rest/api`입니다. 목록은 `start`, `limit`(1~100), 필터와
+`expand`를 보존하는 `_links.next`를 제공합니다. 업데이트는 `version.number`가 최신값 + 1이어야
+하며 동시 수정 충돌은 409입니다. `ancestors: [{id: "부모ID"}]`로 같은 Space 안에서 이동하고,
+빈 배열로 루트에 놓을 수 있습니다. Space 간 이동, 영구 삭제, 자식이 있는 페이지의 삭제는
+범위 밖이며 명시적으로 거부합니다. 복사 워크플로는 읽기 + 새 문서 생성으로 구성할 수 있습니다.
+
+기존 코퍼스 형식과 함께 명시적 ID와 XHTML을 주입할 수 있습니다.
+
+```python
+from jira820 import Config, build_store, make_app
+
+store = build_store(Config(seed="documents"))
+store.confluence = {"alice": [
+    {"id": "100", "title": "Guide", "space": "DOC", "body": "<h2>Overview</h2><p>Text</p>"},
+    {"id": "101", "title": "Child", "space": "DOC", "parentId": "100", "body": "<p>Child</p>"},
+]}
+app = make_app(store=store)
+```
+
+레거시 `ancestors: ["부모 제목", ...]`는 안정적인 ID로 연결됩니다. ID가 있는 ancestor는
+`[{"id": "100", "title": "Guide"}]`로도 지정할 수 있습니다. 앱 생성 후 코퍼스를 교체하는
+테스트는 `jira820.server_confluence.install_confluence(app)`로 상태를 다시 초기화합니다.
+권한 실패는 `app.state.confluence.denied.add("100")`로 주입할 수 있으며 하위 문서와 첨부에도
+적용됩니다. 제한 설정 API는 제한 목록을 보존하지만 사용자별 권한 엔진 전체를 구현하지는 않습니다.
+
+`readonly=True`는 Confluence 쓰기도 거부합니다. `persist`를 지정하면 문서·revision·댓글·첨부
+바이트·라벨·제한 설정까지 저장합니다. Synchrony 세션과 미게시 공유 초안은 구현하지 않으며,
+`body.view`는 storage XHTML을 반환하므로 서버 매크로 렌더러 검증에는 사용하지 않습니다.
+
 ### 링크 그래프 — 티켓 ↔ Confluence ↔ 티켓
 
 맥락을 따라 넓혀 가는 클라이언트(요약·추천·에이전트)를 위해 **모든 엣지가 실재하는 노드**를 가리킵니다.
@@ -165,8 +207,11 @@ pytest -q
   충실히 재현하진 않습니다.
 - JQL 은 흔한 형태(`=,!=,>=,<=,>,<,IN,~`, `AND`/`OR`, `ORDER BY`, project/assignee/status/statusCategory/type/
   labels/sprint/날짜범위, `text ~` 전문검색)를 지원하며, 인식하지 못한 절은 오류 대신 무시합니다.
-- Confluence CQL(`space`/`title`/`text`/`siteSearch`/`contributor`/`lastmodified`)은 검색 응답용 subset 만
-  지원합니다(연동 Confluence DC 9.2.4 형태). 인식 못한 절은 무시합니다.
+- Confluence CQL은 `space`, `title`, `text`, `siteSearch`, `type`, `id`, `parent`, `ancestor`,
+  `label`, `creator`, `contributor`, `mention`, `lastmodified`, `created`와 AND/OR/NOT,
+  괄호, 날짜 함수, `ORDER BY title/lastmodified/created/id`를 지원합니다. 미지원 조건은
+  **400으로 거부**합니다. 입력은 16 KiB, 중첩 64단계, 조건 256개로 제한합니다.
+  전문검색은 대소문자 무관한 부분 문자열 비교이며 Confluence의 Lucene 검색 엔진 전체가 아닙니다.
 - Atlassian 과 무관합니다. "Jira" 는 Atlassian 의 상표이며, 이 프로젝트는 로컬 개발·테스트를 위해 공개 REST 형태만
   흉내 냅니다.
 

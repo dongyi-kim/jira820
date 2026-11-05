@@ -50,6 +50,8 @@ def make_app(store: Store = None, config: Config = None) -> FastAPI:
     app.include_router(server_agile.router)
     app.include_router(server_attach.router)
     app.include_router(server_bitbucket.router)
+    from .server_confluence import install_confluence
+    install_confluence(app)
 
     demo = _demo_dir()
     if demo:

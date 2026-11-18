@@ -246,6 +246,14 @@ class Serializer:
     def issue_res(self, it, base_url: str, fields: str = "", expand: str = "") -> dict:
         allf = self.issue_fields(it, base_url)
         projected = project_fields(allf, fields)
+        # Materialize discussion only when selected. No UI preview cap applies to
+        # this Jira issue field; the envelope makes full/empty coverage explicit.
+        if "comment" in project_fields({"comment": None}, fields):
+            comments = [self.comment_obj(it["key"], i, row)
+                        for i, row in enumerate(it.get("comments", []))]
+            comments.sort(key=lambda row: (row["created"], row["id"]))
+            projected["comment"] = {"comments": comments, "startAt": 0,
+                                    "maxResults": len(comments), "total": len(comments)}
         res = {
             "expand": "renderedFields,names,schema,transitions,operations,editmeta,changelog",
             "id": iid(it["key"]), "self": f"{base_url}/rest/api/2/issue/{it['key']}",
